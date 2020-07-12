@@ -1,4 +1,13 @@
-import { TPoint, TEnumSet, TList } from "./System.js";
+/*=======================================================
+
+    Html Component Library 前端UI框架 V0.1
+    区域单元
+    作者：荆通(18114532@qq.com)
+    QQ群：649023932
+
+=======================================================*/
+
+import { system, TEnumSet, TList, TPoint } from "./System.js";
 
 export var TClipType = {
     None: 0,
@@ -223,7 +232,7 @@ export class TRegion extends TList {
             this.FScanLine = newSl;
         } else {
             let sl = this.FScanLine;
-            while ((sl.next != null) && (Y <= sl.next.y))
+            while ((sl.next != null) && (y <= sl.next.y))
                 sl = sl.next;
 
             if (y == sl.y)

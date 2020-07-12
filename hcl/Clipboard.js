@@ -1,3 +1,12 @@
+/*=======================================================
+
+    Html Component Library 前端UI框架 V0.1
+    粘贴板功能单元
+    作者：荆通(18114532@qq.com)
+    QQ群：649023932
+
+=======================================================*/
+
 import { TAnsiEncoding, TEncode, TObject, TUtf16Encoding, TUtf8Encoding, TList } from "./System.js";
 
 export var TDataFormat = {

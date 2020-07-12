@@ -1,3 +1,12 @@
+/*=======================================================
+
+    Html Component Library 前端UI框架 V0.1
+    输入法交互单元
+    作者：荆通(18114532@qq.com)
+    QQ群：649023932
+
+=======================================================*/
+
 import { TPoint } from "./System.js";
 
 export var TImeMode = {
@@ -42,13 +51,13 @@ class TIme {
             }
         }
 
-        this._input.addEventListener('compositionstart', (e) => {  // eslint-disable-line
+        this._input.addEventListener("compositionstart", (e) => {  // eslint-disable-line
             // 非直接输入开始(如中文输入过程开始)
             this._input.value = "";
             //console.log("非直接输入开始");
         });
 
-        this._input.addEventListener('compositionend', (e) => {
+        this._input.addEventListener("compositionend", (e) => {
             // 非直接输入结束(如中文输入过程开始)
             this._doInput(e.data);
             //console.log("非直接输入结束");
@@ -58,15 +67,17 @@ class TIme {
             if (!e.isComposing) {  // 非编码输入（直接键盘上的键）
                 this._input.value = "";
                 // 中文标点符号
-                if ("·~！@#￥%……&*（）{}【】、|；：’‘“”，。《》/？".indexOf(e.data) >= 0)
+                if ("·~！@#￥%……&*（）{}【】、|；：’‘“”，。《》/？ ".indexOf(e.data) >= 0)
                     this._doInput(e.data);
             }
             // 关闭以下代码，实现对中文输入法切换到英文模式输入的内容不处理
             // if (!e.isComposing)
             //     this._doInput(e.data);
         }
+    }
 
-        document.body.appendChild(this._input);
+    _hclLoaded_(hcl) {
+        hcl.parentElement.appendChild(this._input);
     }
 
     _doSetFocus() {
@@ -93,9 +104,9 @@ class TIme {
             if (control.imeMode == TImeMode.Disabled)
                 this._input.blur();
             else if (!this._active) {
-                this.updatePosition(0, 0);
                 this.updateSize(14);
                 this._input.focus();
+                this._control.imeActive();
             }
         } else {
             this._input.blur();

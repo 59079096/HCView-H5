@@ -1,3 +1,12 @@
+/*=======================================================
+
+    Html Component Library 前端UI框架 V0.1
+    基本类型单元
+    作者：荆通(18114532@qq.com)
+    QQ群：649023932
+
+=======================================================*/
+
 export var TCharSet = {
     Ansi: 0,
     Unicode: 1,
@@ -80,8 +89,17 @@ class TSystem {
             return false;   
     }
 
+    parseFloatDef(s, def) {
+        let vR = parseFloat(s);
+        if (isNaN(vR))
+            return def;
+        else
+            return vR;
+    }
+
     assigned(obj) {
-        return obj != null;
+        //return obj != null;
+        return typeof(obj) != "undefined";
     }
 
     beep() { }
@@ -92,6 +110,18 @@ class TSystem {
 
     log(msg) {
         console.log(msg);
+    }
+
+    getUrlParam(param) {
+       let vQuery = window.location.search.substring(1);
+       let vParams = vQuery.split("&"), vPrm;
+       for (let i = 0; i < vParams.length; i++) {
+            vPrm = vParams[i].split("=");
+            if (vPrm[0] == param)
+                return vPrm[1];
+       }
+
+       return "";
     }
 }
 
@@ -109,8 +139,16 @@ export class TBytes extends Array {
         let vRawData = window.atob(base64);  // atob仅windows下？
         let vBytes = new TBytes(vRawData.length);
         //let vBytes = new Uint8Array(vRawData.length);
-        for (let i = 0; i < vRawData.length; ++i)
+        for (let i = 0, vLen = vRawData.length; i < vLen; ++i)
             vBytes[i] = vRawData.charCodeAt(i);
+
+        return vBytes;
+    }
+
+    static fromBuffer(buf) {
+        let vBytes = new TBytes(buf.length);
+        for (let i = 0, vLen = buf.length; i < vLen; ++i)
+            vBytes[i] = buf[i];
 
         return vBytes;
     }
@@ -700,8 +738,11 @@ export class TEnumSet {
  */
 export class TObject {
     constructor() {
+        this.createBefor();
         this._className = this.constructor.name;
     }
+
+    createBefor() { }
 
     dispose() { }
 
@@ -833,6 +874,11 @@ export class TRect {
         this.reset(l, t, l + w, t + h);
     }
 
+    resetSize(size) {
+        this.right = this.left + size.width;
+        this.bottom = this.top + size.height;
+    }
+
     offset(x, y, clone = false) {
         if (!clone) {
             this.left = this.left + x;
@@ -843,6 +889,10 @@ export class TRect {
             return TRect.Create(this.left + x, this.top + y, this.right + x, this.bottom + y);
     }
 
+    /**
+     * 返回和区域的相交的区域
+     * @param {矩形区域} rect 
+     */
     intersection(rect) {
         let re = new TRect();
         if (rect.right <= this.left)
@@ -923,6 +973,19 @@ export class TRect {
         return this.pointInAt(pt.x, pt.y);
     }
 
+    /**
+     * 和另一个矩形区域是否有相交
+     * @param {矩形区域} rect 
+     */
+    isIntersect(rect) {
+        let vMaxL = this.left > rect.left ? this.left : rect.left;
+        let vMaxT = this.top > rect.top ? this.top : rect.top;
+        let vMinR = this.right < rect.right ? this.right : rect.right;
+        let vMinB = this.bottom < rect.bottom ? this.bottom : rect.bottom;
+
+        return (vMaxL < vMinR && vMaxT < vMinB);
+    }
+
     get leftTop() {
         return TPoint.Create(this.left, this.top);
     }
@@ -964,7 +1027,7 @@ export class TList extends Array {
         super();
         this._onAdded = null;
         this._onRemoved = null;
-        this.ownsObjects = ownsObjects;
+        this.ownsObjects = (ownsObjects == null ? true : ownsObjects);
     }
 
     doAdded_(item) {
@@ -1044,7 +1107,7 @@ export class TList extends Array {
     insert(index, item) {
         if ((index >= 0) && (index <= this.length)) {
             this.splice(index, 0, item);
-            this.doAdded_(index, item);
+            this.doAdded_(item);
             return true;
         }
 
@@ -1143,13 +1206,101 @@ export class TQueue extends Array {
     }
 }
 
+export class TMap { }
+
+export class TDictionary extends TList {
+    constructor(ownsObjects = true) {
+        super(ownsObjects);
+    }
+
+    add(key, val) {
+        let vMap = {};
+        vMap.key = key;
+        vMap.val = val;
+        super.add(vMap);
+    }
+
+    remove(key) {
+        let i = this.indexOfKey(key);
+        if (i >= 0)
+            super.removeAt(i);
+    }
+
+    indexOfKey(key) {
+        for (let i = 0; i < this.count; i++) {
+            if (this[i].key == key)
+                return i;
+        }
+
+        return -1;
+    }
+
+    indexOfValue(val) {
+        for (let i = 0; i < this.count - 1; i++) {
+            if (this[i].val == val)
+                return i;
+        }
+
+        return -1;
+    }
+
+    valueByKey(key) {
+        let i = this.indexOfKey(key);
+        if (i < 0)
+            return null;
+        else
+            return this[i].val;
+    }
+
+    keyByValue(val) {
+        let i = this.indexOfValue(val);
+        if (i < 0)
+            return null;
+        else
+            return this[i].key;
+    }
+
+    setValue(key, val) {
+        let i = this.indexOfKey(key);
+        if (i < 0)
+            this.add(key, val);
+        else
+            this[i].val = val;
+    }
+
+    hasKey(key) {
+        return this.indexOfKey(key) >= 0;
+    }
+}
+
+export class TStringList extends TList {
+    constructor() {
+        super();
+    }
+
+    append(s) {
+        this.add(s);
+    }
+
+    get text() {
+        let vRes = "";
+        if (this.length > 0) {
+            vRes = this[0];
+            for (let i = 1, vLen = this.length; i < vLen; i++)
+                vRes += "\r\n" + this[i]; 
+        }
+
+        return vRes;
+    }
+}
+
 export class TDateTime {
     constructor() {
         this._datetime = new Date;
     }
 
     format(fmt) {   
-        let o = {   
+        let vDT = {   
             "M+" : this.month,
             "d+" : this.day,
             "h+" : this.hour,
@@ -1163,9 +1314,9 @@ export class TDateTime {
         if (/(y+)/.test(fmt))   
             fmt = fmt.replace(RegExp.$1, (this.year + "").substr(4 - RegExp.$1.length));   
 
-        for (let k in o) {  
+        for (let k in vDT) {  
             if(new RegExp("("+ k +")").test(fmt))   
-                fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00"+ o[k]).substr((""+ o[k]).length)));   
+                fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (vDT[k]) : (("00"+ vDT[k]).substr((""+ vDT[k]).length)));   
         }
 
         return fmt;   
@@ -1176,11 +1327,16 @@ export class TDateTime {
     }
     
     toOADate() {
-        this._datetime.toUTCString();
+        //return this._datetime.toUTCString();
+        let localOffset = this._datetime.getTimezoneOffset() * 60000; //系统时区偏移 1900/1/1 到 1970/1/1 的 25569 天
+        return (parseFloat(this._datetime.getTime()) - localOffset) / 24 / 3600 / 1000 + 25569;
     }
 
     fromOAData(utc) {
-        this._datetime.setUTCMilliseconds(utc);
+        //this._datetime.setUTCMilliseconds(utc);
+        this._datetime = new Date();
+        let localOffset = this._datetime.getTimezoneOffset() * 60000; //系统时区偏移 1900/1/1 到 1970/1/1 的 25569 天
+        this._datetime.setTime((utc - 25569) * 24 * 3600 * 1000 + localOffset);
     }
 
     get year() {
@@ -1304,11 +1460,27 @@ export class TStream {
         this.onLoadFinish = null;
     }
 
+    clear() {
+        this._bytes.length = 0;
+        this._size = 0;
+        this._position = 0;
+    }
+
+    copyFrom(source, count) {
+        if (count == 0) {
+            source.position = 0;
+            count = source.size;
+        }
+
+        let vBuffer = source.readBuffer(count)
+        this.writeBuffer(vBuffer);
+    }
+
     loadFromFile(blob) {
         //console.log('loadFromFile');
         //new Promise((resolveEvent, rejectEvent) => {
             let vReader = new FileReader();
-            vReader.onloadstart = (e) => {  // 开始读取
+            vReader.onloadstart = () => {  // 开始读取
                 this._size = 0;
                 this._position = 0;
                 this._buffer = null;// new ArrayBuffer(this._size);
@@ -1330,11 +1502,11 @@ export class TStream {
                 //resolveEvent();
             }
 
-            vReader.onloadend = (e) => {  // 读取完成，无论成功或失败
+            vReader.onloadend = () => {  // 读取完成，无论成功或失败
 
             }
 
-            vReader.onabort = (e) => {  // 读取中断时触发
+            vReader.onabort = () => {  // 读取中断时触发
 
             }
 
@@ -1344,7 +1516,7 @@ export class TStream {
                     this.onLoadProgress(e.loaded, e.total);
             }
 
-            vReader.onerror = (e) => {  // 读取发生错误
+            vReader.onerror = () => {  // 读取发生错误
                 //console.log('onerror');
             }
 
@@ -1393,7 +1565,7 @@ export class TStream {
     }
 
     readInt8() {
-        return new TInt8(this.readBuffer(1)[0]).value;  // Int8Array.BYTES_PER_ELEMENT
+        return new Int8Array(this.readBuffer(1));
     }
 
     writeInt8(int8) {
@@ -1469,7 +1641,7 @@ export class TStream {
         //    + (vBuffer[3] << 24) + (vBuffer[2] << 16) + (vBuffer[1] << 8) + vBuffer[0];
     }
 
-    writeInt64(int64) {
+    writeInt64() {
         
     }
 
@@ -1499,7 +1671,7 @@ export class TStream {
 
     readDouble() {
         let vBuffer = this.readBuffer(8);
-        let vF = new Float64Array(vBuffer);  // vBuffer.byteOffset, vBuffer.byteLength
+        let vF = new Float64Array(new Uint8Array(vBuffer).buffer);
         return vF[0];
     }
 
@@ -1520,11 +1692,13 @@ export class TStream {
 
     readDateTime() {
         let vdb = this.readDouble();
-        return (new TDateTime()).fromOAData(vdb);
+        let vDT = new TDateTime();
+        vDT.fromOAData(vdb);
+        return vDT;
     }
 
     writeDateTime(dt) {
-        let vdb = parseInt(dt.toOADate());
+        let vdb = dt.toOADate();
         this.writeDouble(vdb);
     }
 
@@ -1588,6 +1762,27 @@ String.format = function() {
             });
         } else
             return vValues[0];
+    }
+}
+
+String.formatFloat = function () {
+    let vValues = arguments;
+    if (vValues.length > 1) {
+        let vLAftDot = vValues[0];  // 小数点后几位
+        let vS = vValues[1].toString();
+        let vDotPos = vS.indexOf(".");
+        if (vDotPos >= 0) {  // 有小数点
+            let vB = vS.substr(0, vDotPos);
+            if (vB == "")
+                vB = "0";
+
+            let vE = vS.substr(vDotPos + 1, vLAftDot);
+            if (vE.replace("0", "") == "")  // 全是0
+                return vB;
+            else
+                return vB + "." + vE;
+        } else
+            return vS;
     }
 }
 
