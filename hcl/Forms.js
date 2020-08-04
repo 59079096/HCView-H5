@@ -13,7 +13,7 @@ import { THCCanvas } from "./Graphics.js";
 import { hcl } from "./HCL.js";
 import { TButton, TCaptionBar, TEdit, TLable, TPanel } from "./StdCtrls.js";
 import { theme } from "./theme.js";
-import { HC } from "../hcview/HCCommon.js";
+import { system } from "./System.js";
 
 export var TFormShowState = {
     Close: 0,
@@ -191,14 +191,6 @@ export class TForm extends TCustomForm {
     set caption(val) {
         this.lblCaption.text = val;
     }
-
-    get text() {
-        return this.caption;
-    }
-
-    set text(val) {
-        this.caption = val;
-    }
 }
 
 export class TDialog extends TForm {
@@ -309,7 +301,7 @@ export class TMessageDialog extends TDialog {
         this.text = text;
         this.dlgBtn = null; 
 
-        let vArr = text.split(HC.sLineBreak), vW = 0, vWidth = 0;
+        let vArr = text.split(system.lineBreak), vW = 0, vWidth = 0;
         for (let i = 0; i < vArr.length; i++) {
             vW = THCCanvas.textWidth(null, vArr[i]) + 40;
             if (vWidth < vW)
@@ -386,7 +378,7 @@ export class TMessageDialog extends TDialog {
         super.doPaint_(hclCanvas);
         //hclCanvas.font.assign(this.font);
 
-        let vArr = this.text.split(HC.sLineBreak), vTop = Math.trunc((this.clientArea.height - this.contentHeight) / 2 + 5);
+        let vArr = this.text.split(system.lineBreak), vTop = Math.trunc((this.clientArea.height - this.contentHeight) / 2 + 5);
         for (let i = 0; i < vArr.length; i++) {
             hclCanvas.textOut(20, vTop, vArr[i])
             vTop += THCCanvas.DefaultFont.height + 5;

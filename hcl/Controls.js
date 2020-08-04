@@ -94,6 +94,7 @@ export var TKey = {
     ShiftKey: 16,
     ControlKey: 17,
     Menu: 18,
+    Alt: 18,
     Pause: 19,
     Capital: 20,
     CapsLock: 20,
@@ -216,7 +217,9 @@ export var TKey = {
     LControlKey: 162,
     RControlKey: 163,
     LMenu: 164,
+    LAlt: 164,
     RMenu: 165,
+    RAlt: 165,
     BrowserBack: 166,
     BrowserForward: 167,
     BrowserRefresh: 168,
@@ -396,6 +399,8 @@ export class TControl extends TComponent {
         this.mouseStates = new Set([]);
         this.tag = null;
         this.state_.delete(TControlState.Creating);
+
+        this.onKillFocus = null;
     }
 
     hclSelect() {
@@ -451,6 +456,9 @@ export class TControl extends TComponent {
 
     doKillFocus_() { 
         this._focused = false;
+        if (this.onKillFocus)
+            this.onKillFocus();
+
         if (this.parent != null)
             this.parent.killFocusControl_(this);
     }
@@ -498,6 +506,11 @@ export class TControl extends TComponent {
         this.state_.delete(TControlState.VisibleChange);
         if (this._parent != null)
             this._parent.controlVisible_(this, val);
+
+        if (this.visible_ && this.onShow)
+            this.onShow();
+        else if (!this.visible_ && this.onHide)
+            this.onHide();
     }
 
     doSetMarginLeft_(val) {
@@ -739,6 +752,17 @@ export class TControl extends TComponent {
             return point;
     }
 
+    isChildControl(control) {
+        let vControl = this;
+        while (vControl.parent != null) {
+            vControl = vControl.parent;
+            if (vControl === control)
+                return true;
+        }
+
+        return false;
+    }
+
     getHintRect() {
         return this.clientRect();
     }
@@ -747,18 +771,17 @@ export class TControl extends TComponent {
         if (this._updateCount > 0)
             return;
 
-        if (this.visible) {
-            if (this.alpha_ != 1) {
-                hclCanvas.save();
-                try {
-                    hclCanvas.alpha = this.alpha_;
-                    this._paintexec(hclCanvas);
-                } finally {
-                    hclCanvas.restore();
-                }
-            } else
+        // 绘制前判断过了 this.visible
+        if (this.alpha_ != 1) {
+            hclCanvas.save();
+            try {
+                hclCanvas.alpha = this.alpha_;
                 this._paintexec(hclCanvas);
-        }
+            } finally {
+                hclCanvas.restore();
+            }
+        } else
+            this._paintexec(hclCanvas);
     }
 
     paintTo(hclCanvas, x, y) {
@@ -1103,23 +1126,9 @@ export class TPopupControl extends TControl {
         this.onDone = null;
     }
 
-    _doPaintShadow(hclCanvas, rect) {
-        hclCanvas.brush.color = theme.ShadowColor;
-        hclCanvas.fillRectShadow(rect, theme.shadow);
-    }
-
     doPaintBackground_(hclCanvas) {
         let vRect = this.clientRect();
-        if (this.dropDownStyle) {
-            hclCanvas.save();
-            try {
-                hclCanvas.clip(vRect.left - theme.shadow, vRect.top, vRect.width + theme.shadow * 2, vRect.bottom + theme.shadow);
-                this._doPaintShadow(hclCanvas, vRect)
-            } finally {
-                hclCanvas.restore();
-            }
-        } else
-            this._doPaintShadow(hclCanvas, vRect);
+        theme.drawShadow(hclCanvas, vRect, this.dropDownStyle);
 
         hclCanvas.brush.color = theme.backgroundStaticColor;
         hclCanvas.fillRect(vRect);    
@@ -1976,6 +1985,11 @@ export class TWinControl extends TControl {
     }
 
     controlVisible_(control, val) {  // eslint-disable-line
+        if (!val && this.focusControl) {  // 隐藏不显示
+            if (this.focusControl == control || this.focusControl.isChildControl(control))
+                this.focusControl.killFocus();
+        }
+
         this.reAlignControl(control);
     }
 
@@ -2226,10 +2240,16 @@ export class TWinControl extends TControl {
         let vControl = null;
         for (let i = 0; i < this.controls.count; i++) {
             vControl = this.controls[i];
+            if (!vControl.visible)
+                continue;
+
             hclCanvas.save();
             try {
                 // to do 处理旋转的区域
                 hclCanvas.translate(vControl.left, vControl.top);
+                if (vControl.drawShadow)  // 为实现emr数据元弹出窗体阴影临时加的
+                    theme.drawShadow(hclCanvas, TRect.CreateByBounds(0, 0, vControl.width, vControl.height), true);
+                
                 hclCanvas.clip(0, 0, vControl.width, vControl.height);
                 vControl.paint(hclCanvas);
             } finally {
@@ -2279,17 +2299,7 @@ export class TPopupWinControl extends TCustomControl {
 
     doPaintBackground_(hclCanvas) {
         let vRect = this.clientRect();
-        if (this.dropDownStyle) {
-            hclCanvas.save();
-            try {
-                hclCanvas.clip(vRect.left - theme.shadow, vRect.top, vRect.width + theme.shadow * 2, vRect.bottom + theme.shadow);
-                this._doPaintShadow(hclCanvas, vRect)
-            } finally {
-                hclCanvas.restore();
-            }
-        } else
-            this._doPaintShadow(hclCanvas, vRect);
-
+        theme.drawShadow(hclCanvas, vRect, this.dropDownStyle);
         super.doPaintBackground_(hclCanvas);
     }
 

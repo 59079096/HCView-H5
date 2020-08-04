@@ -257,7 +257,7 @@ export class TTextControl extends TControl {
         this.borderVisible_ = false;
         this.borderWidth_ = 1;
         this._horiAlign = THorizontalAlign.Left;
-        this._vertAlign = TVerticalAlign.Top;
+        this._vertAlign = TVerticalAlign.Center;
         this._autoWidth = false;
         this._autoHeight = false;
         this.width_ = 75;
@@ -300,6 +300,7 @@ export class TTextControl extends TControl {
     doCalcWidth_() {
         return this.paddingLeft + this.paddingRight + THCCanvas.textWidth(this.font, this.text);
     }
+
     doSetAutoWidth_() {
         let vW = this.doCalcWidth_();
         if (this.width != vW)
@@ -443,7 +444,7 @@ export class TTextControl extends TControl {
 
     set text(val) {
         if (this.text_ != val) {
-            this.text_ = val;
+            this.text_ = val.toString();
             this.doSetText_();
         }
     }
@@ -890,20 +891,22 @@ export class TCheckBox extends TLable {
         this._checked = false;
         this._downInCheck = false;
         this._checkByText = true;
-        this.paddingLeft = theme.iconSize + 1;
-        this.onSwitch = null;
+        this.paddingLeft = 2 + theme.iconSize;
+        this.FOnSwitch = null;
     }
 
     _getBoxRect() {
-        return TRect.CreateByBounds(1, Math.trunc((this.height - theme.iconSize) / 2) + 1, theme.iconSize - 2, theme.iconSize - 2);
+        return TRect.CreateByBounds(2, Math.trunc((this.height - theme.iconSize) / 2) + 1, theme.iconSize - 2, theme.iconSize - 2);
     }
 
     doCalcWidth_() {
-        return theme.iconSize + super.doCalcWidth_();
+        return super.doCalcWidth_();
     }
 
     doSetBounds_() {
-        this.height_ = theme.iconSize;
+        if (this.height_ < theme.iconSize)
+            this.height_ = theme.iconSize;
+
         super.doSetBounds_();
     }
 
@@ -918,22 +921,30 @@ export class TCheckBox extends TLable {
     }
 
     doMouseDown_(e) {
+        let vRect = this._getBoxRect();
+        if (e.y < vRect.top || e.y > vRect.bottom)
+            return
+
         if (this._checkByText)
             this._downInCheck = true;
         else
-            this._downInCheck = this._getBoxRect().pointInAt(e.x, e.y);
+            this._downInCheck = vRect.pointInAt(e.x, e.y);
 
         super.doMouseDown_(e);
     }
 
     doMouseUp_(e) {
+        let vRect = this._getBoxRect();
+        if (e.y < vRect.top || e.y > vRect.bottom)
+            return
+
         if (this._downInCheck) {
-            if (!this._checkByText && !this._getBoxRect().pointInAt(e.x, e.y)) {
+            if (!this._checkByText && !vRect.pointInAt(e.x, e.y)) {
                 //;
             } else {
                 this.checked = !this._checked;
-                if (this.onSwitch != null)
-                    this.onSwitch();
+                if (this.FOnSwitch != null)
+                    this.FOnSwitch();
             }
         }
         
@@ -965,6 +976,14 @@ export class TCheckBox extends TLable {
             this.updateRect(this._getBoxRect());
         }
     }
+
+    get onSwitch() {
+        return this.FOnSwitch;
+    }
+
+    set onSwitch(val) {
+        this.FOnSwitch = val;
+    }
 }
 
 export class TInputControl extends TTextControl {
@@ -973,7 +992,7 @@ export class TInputControl extends TTextControl {
         this._readOnly = false;
         this.cursor_ = TCursors.Ibeam;
         this.imeMode = TImeMode.Disabled;
-
+        this.popupMenuEnable = true;
         this.popupMenu = new TPopupMenu();
         this._copyMenuItem = this.popupMenu.addItem("复制");
         this._copyMenuItem.onClick = () => {
@@ -1013,29 +1032,31 @@ export class TInputControl extends TTextControl {
         ime.removeControl(this);
     }
 
-    doKillFocus_() {
-        super.doKillFocus_();
-        ime.removeControl(this);
-    }
-
     doContextMenu_(x, y) {
+        if (!this.popupMenuEnable)
+            return;
+
         this._copyMenuItem.enabled = this.canCopy_();
         this._cutMenuItem.enabled = this.canCut_();
         this._pasteMenuItem.enabled = this.canPaste_();
         super.doContextMenu_(x, y);
     }
 
-    doMouseDown_(e) {
-        super.doMouseDown_(e);
+    doCheckImeMode_() {
         if (!this._readOnly) {
-            if (this.imeMode == TImeMode.Active)
+            if (this.imeMode != TImeMode.Disabled)
                 ime.setControl(this);  // 保证显示光标时ime的Control是我
         }
     }
 
+    doMouseDown_(e) {
+        super.doMouseDown_(e);
+        this.doCheckImeMode_();
+    }
+
     doMouseUp_(e) {
         if (!this._readOnly && this.mouseStates.has(TMouseStates.MouseDown)) {
-            if (this.imeMode == TImeMode.Active)
+            if (this.imeMode != TImeMode.Disabled)
                 ime.setControl(this);  // 保证ime在鼠标弹起时有机会激活(浏览器在鼠标弹起时才激活)
         }
 
@@ -1093,7 +1114,7 @@ export class TEdit extends TInputControl {
         super(text);
         this.canFocus = true;
         this.borderVisible_ = true;
-        this._innerPasted = false;  // 内部响应了粘贴
+        this._innerPasted = false;  // 内部响应了粘贴，防止和输入法Input的粘贴冲突
         this._vertAlign = TVerticalAlign.Center;
         this._selStart = -1;
         this._selEnd = -1;
@@ -1555,7 +1576,15 @@ export class TEdit extends TInputControl {
 
     doSetFocus_(accept) {
         super.doSetFocus_(accept);
-        this._createCaret();        
+        if (accept) {
+            this._createCaret();
+            // 保证调用setFocus方法时，也能有光标显示
+            this._selStart = 0;
+            this._selMove = this._selStart;
+            this.scrollAdjust_(this._selMove);
+            this.resetSelect_();
+            this.doCheckImeMode_();
+        }
     }
 
     doKillFocus_() {
@@ -2726,9 +2755,11 @@ export class TColorCombobox extends TCombobox {
         this.dropDownCount_ = 16;
         this.imeMode = TImeMode.Disabled;
         this.dropDownWidth = 64;
+        this.addItem(TColor.Black);
         this.addItem(TColor.Red);
         this.addItem(TColor.Green);
         this.addItem(TColor.Blue);
+        this.addItem(TColor.Yellow);
         this.addItem(TColor.Gray);
         this.addItem(TColor.Magenta);
         this.addItem(TColor.Purple);
@@ -3599,7 +3630,7 @@ export class TPageControl extends TPanel {
     }
 }
 
-export class TGridRow extends TList {
+export class TCusotmGridRow extends TList {
     constructor(colCount) {
         super();
         this.onAdded = (cell) => {
@@ -3612,17 +3643,21 @@ export class TGridRow extends TList {
         this.initCol(colCount);
     }
 
+    createNewCell() {
+        return new TCustomGridCell();
+    }
+
     initCol(colCount) {
         this.clear();
         let vCell;
         for (let i = 0; i < colCount; i++) {
-            vCell = new TGridRow.CellClass();
+            vCell = this.createNewCell();
             this.add(vCell);
         }
     }
 }
 
-export class TGridCell extends TObject {
+export class TCustomGridCell extends TObject {
     constructor() {
         super();
         this._value = "";
@@ -3650,8 +3685,6 @@ export class TGridCell extends TObject {
     }
 }
 
-TGridRow.CellClass = TGridCell;
-
 class TGridOption extends TObject {
     constructor() {
         super();
@@ -3659,7 +3692,7 @@ class TGridOption extends TObject {
     }
 }
 
-export class TGrid extends TScrollPanel {
+export class TCustomGrid extends TScrollPanel {
     constructor(rowCount = 2, colCount = 2) {
         super();
         this.state_.add(TControlState.Creating);
@@ -3883,67 +3916,81 @@ export class TGrid extends TScrollPanel {
                             this.rows[r][c].paintTo(hclCanvas, vRect);
                         }
 
+                        vRect.left -= theme.borderWidth;
+                        vRect.top -= theme.borderWidth;
                         hclCanvas.rectangleRect(vRect);
-                        vLeft += vWidth - theme.borderWidth;
+                        vLeft += vWidth;
                     }
                 }
     
-                vTop += vHeight - theme.borderWidth;                
+                vTop += vHeight;                
             }
         }
 
-        super.doPaint_(hclCanvas);
+        
         if (this.HScroll_.visible && this.VScroll_.visible) {
             hclCanvas.brush.color = theme.backgroundStaticColor;
             hclCanvas.fillBounds(this.VScroll_.left, this.HScroll_.top, this.VScroll_.width, this.HScroll_.height);
         }
 
-        // if (this.fixRowCount_)
-        hclCanvas.clip(this.borderVisible ? theme.borderWidth : 0,
-            vTop,
-            this.VScroll_.visible ? this.width - this.VScroll_.width : this.width - theme.borderWidth,
-            this.HScroll_.visible ? this.height - vTop - this.HScroll_.height : this.height - vTop - theme.borderWidth);
+        hclCanvas.save();
+        try {
+            hclCanvas.clip(this.borderVisible ? theme.borderWidth : 0,
+                vTop,
+                this.VScroll_.visible ? this.width - this.VScroll_.width : this.width - theme.borderWidth,
+                this.HScroll_.visible ? this.height - vTop - this.HScroll_.height : this.height - vTop - theme.borderWidth);
 
-        vLeft = this.leftOffset_;
-        vTop = this.topOffset_;
-        for (let r = this.FRowDispRange.first; r <= this.FRowDispRange.last; r++) {
-            vHeight = this.getRowHeight_(r);
             vLeft = this.leftOffset_;
-            
-            vRect.resetBounds(vLeft, vTop, this.width, vHeight);
-            if (!this.doRowPaint_(hclCanvas, vRect, r)) {
-                hclCanvas.brush.color = theme.backgroundContentColor;
-                hclCanvas.fillRect(vRect);
-            }
-
-            for (let c = this.FColDispRange.first; c <= this.FColDispRange.last; c++) {
-                vWidth = this.getCellWidth_(r, c);
-                if (vWidth > 0) {
-                    vRect.resetBounds(vLeft, vTop, vWidth, vHeight);
-                    if (r == this.row_) {
-                        if (this.option.rowSelect || c == this.col_) {
-                            hclCanvas.brush.color = theme.backgroundSelectColor;
-                            hclCanvas.fillRect(vRect);
-                        }
-                    }
-
-                    if (!this.doCellPaint_(hclCanvas, vRect, r, c))
-                        this.rows[r][c].paintTo(hclCanvas, vRect);
-
-                    hclCanvas.rectangleRect(vRect);
-                    vLeft += vWidth - theme.borderWidth;
+            vTop = this.topOffset_;
+            for (let r = this.FRowDispRange.first; r <= this.FRowDispRange.last; r++) {
+                vHeight = this.getRowHeight_(r);
+                vLeft = this.leftOffset_;
+                
+                vRect.resetBounds(vLeft, vTop, this.width, vHeight);
+                if (!this.doRowPaint_(hclCanvas, vRect, r)) {
+                    hclCanvas.brush.color = theme.backgroundContentColor;
+                    hclCanvas.fillRect(vRect);
                 }
-            }
 
-            vTop += vHeight - theme.borderWidth;
+                for (let c = this.FColDispRange.first; c <= this.FColDispRange.last; c++) {
+                    vWidth = this.getCellWidth_(r, c);
+                    if (vWidth > 0) {
+                        vRect.resetBounds(vLeft, vTop, vWidth, vHeight);
+                        if (r == this.row_) {
+                            if (this.option.rowSelect || c == this.col_) {
+                                hclCanvas.brush.color = theme.backgroundSelectColor;
+                                hclCanvas.fillRect(vRect);
+                            }
+                        }
+
+                        if (!this.doCellPaint_(hclCanvas, vRect, r, c))
+                            this.rows[r][c].paintTo(hclCanvas, vRect);
+
+                        vRect.left -= theme.borderWidth;
+                        vRect.top -= theme.borderWidth;
+                        hclCanvas.rectangleRect(vRect);
+                        vLeft += vWidth;
+                    }
+                }
+
+                vTop += vHeight;
+            }
+        } finally {
+            hclCanvas.restore();
         }
+
+        super.doPaint_(hclCanvas);
+    }
+
+    doCreateNewRow_(colCount) {
+        return new TCusotmGridRow(colCount)
     }
 
     initRowCol(rowCount, colCount) {
         this.rows.clear();
         let vRow;
         for (let i = 0; i < rowCount; i++) {
-            vRow = new TGrid.RowClass(colCount);
+            vRow = this.doCreateNewRow_(colCount);
             this.rows.add(vRow);
         }
 
@@ -3974,7 +4021,7 @@ export class TGrid extends TScrollPanel {
                 this.beginUpdate();
                 try {
                     while (this.rows.count < val) {
-                        vRow = new TGrid.RowClass(this.colCount);
+                        vRow = this.doCreateNewRow_(this.colCount);
                         this.rows.add(vRow);
                     }
                 } finally {
@@ -3999,7 +4046,7 @@ export class TGrid extends TScrollPanel {
                 let vCell;
                 while (this._colWidths.length < val) {
                     for (let i = 0; i < this.rows.count; i++) {
-                        vCell = new TGridRow.CellClass();
+                        vCell = this.rows[i].createNewCell();
                         this.rows[i].add(vCell);
                     }
                 }
@@ -4024,16 +4071,50 @@ export class TGrid extends TScrollPanel {
                     }
                 }
 
-                vLeft += vWidth - theme.borderWidth;
+                vLeft += vWidth;
             }
 
-            vTop += vHeight - theme.borderWidth;
+            vTop += vHeight;
         }
 
         return {
             row: -1,
             col: -1
         }
+    }
+
+    getCellRect(r, c) {
+        let vTop = 0, vLeft = 0;
+        for (let i = 0; i < r; i++)
+            vTop += this.getRowHeight_(i);
+
+        vTop -= this.VScroll_.position;
+
+        for (let i = 0; i < c; i++)
+            vLeft += this._colWidths[i];
+
+        vLeft -= this.HScroll_.position;
+
+        return TRect.CreateByBounds(vLeft, vTop, this._colWidths[c], this.getRowHeight_(r));
+    }
+
+    deleteRow(r, count = 1) {
+        if (r < this.fixRowCount_)
+            return;
+
+        if (count < 1)
+            return;
+
+        let vRCount = this.rowCount, vCCount = this.colCount;
+        count = Math.min(count, vRCount - r);
+        while (r + count < vRCount) {
+            for (let c = 0; c < vCCount; c++)
+                this.rows[r][c].value = this.rows[r + count][c].value;
+
+            r++;
+        }
+
+        this.rowCount = this.rowCount - count;
     }
 
     get contentHeight() {
@@ -4098,7 +4179,82 @@ export class TGrid extends TScrollPanel {
     }
 }
 
-TGrid.RowClass = TGridRow;
+export class TGrid extends TCustomGrid {
+    constructor(rowCount, colCount) {
+        super(rowCount, colCount);
+        this.readOnly = false;
+        this.FInnerEdit_ = new TEdit();
+        this.FInnerEdit_.visible_ = false;
+        this.FInnerEdit_._marginLeft = 0;
+        this.FInnerEdit_._marginTop = 0;
+        this.FInnerEdit_._marginRight = 0;
+        this.FInnerEdit_._marginBottom = 0;
+        this.FInnerEdit_._paddingLeft = 2;
+        this.FInnerEdit_._paddingTop = 0;
+        this.FInnerEdit_._paddingRight = 2;
+        this.FInnerEdit_._paddingBottom = 0;
+        this.FInnerEdit_.onKeyDown = (e) => {
+            if (e.keyCode == TKey.Return)
+                this.doSetInnerEdit_();
+            else if (e.keyCode == TKey.Escape)
+                this.doSetInnerEdit_(false);
+        }
+
+        this.FInnerEdit_.onKillFocus = () => {
+            this.doSetInnerEdit_();
+        }
+
+        this.FEditRow = -1;
+        this.FEditCol = -1;
+        this.addControl(this.FInnerEdit_);
+    }
+
+    doSetInnerEdit_(accept = true) {
+        if (this.FEditRow >= 0 && this.FEditRow < this.rowCount) {
+            if (accept)
+                this.rows[this.FEditRow][this.FEditCol].value = this.FInnerEdit_.text;
+            else  // 取消时恢复原值，便于下面visible为false时触发killFocus时再次触发此事件accept为true时不赋edit的值
+                this.FInnerEdit_.text = this.rows[this.FEditRow][this.FEditCol].value;
+        }
+        this.FInnerEdit_.visible = false;
+    }
+
+    doMouseDown_(e) {
+        if (this.FInnerEdit_.visible_) {
+            if (this.FInnerEdit_.bounds().pointInAt(e.x, e.y)) {
+                super.doMouseDown_(e);
+                return;
+            }
+        }
+
+        let vOldRow = this.row_, vOldCol = this.col_;
+        super.doMouseDown_(e);
+        if (!this.readOnly) {
+            if (this.row_ > this.fixRowCount_ - 1 && this.col_ >= 0) {
+                if (vOldRow == this.row_ && vOldCol == this.col_) {  // 本次点在同一个单元格
+                    this.FInnerEdit_.text = this.rows[this.row_][this.col_].value;
+                    let vRect = this.getCellRect(this.row_, this.col_);
+                    vRect.left -= theme.borderWidth;
+                    vRect.top -= theme.borderWidth;
+                    this.FInnerEdit_.left = vRect.left;
+                    this.FInnerEdit_.top = vRect.top;
+                    this.FInnerEdit_.width_ = vRect.width;
+                    this.FInnerEdit_.height_ = vRect.height;
+                    this.FInnerEdit_.visible = true;
+
+                    this.FEditRow = vOldRow;
+                    this.FEditCol = vOldCol;
+
+                    let vMouseArgs = new TMouseEventArgs();
+                    vMouseArgs.assign(e);
+                    vMouseArgs.x -= this.FInnerEdit_.left;
+                    vMouseArgs.y -= this.FInnerEdit_.top;
+                    this.FInnerEdit_.mouseDown(vMouseArgs);
+                }
+            }
+        }
+    }
+}
 
 export class TTreeNode extends TObject {
     constructor(text = "") {

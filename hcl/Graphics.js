@@ -162,6 +162,7 @@ TColor.Green = "rgb(0, 255, 0)";
 TColor.Blue = "rgb(0, 0, 255)";
 TColor.Black = "rgb(0, 0, 0)";
 TColor.White = "rgb(255, 255, 255)";
+TColor.Yellow = "rgb(255, 255, 0)";
 TColor.Gray = "gray";
 TColor.Pink = "rgb(255, 192, 203)";
 TColor.Crimson = "rgb(220, 20, 60)";

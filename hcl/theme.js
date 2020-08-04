@@ -253,6 +253,21 @@ class TTheme {
         hclCanvas.fillBounds(x - 2, vTop - 2, 4, 4);
     }
 
+    drawShadow(hclCanvas, rect, dropDownStyle = false) {
+        hclCanvas.brush.color = this.ShadowColor;
+
+        if (dropDownStyle) {
+            hclCanvas.save();
+            try {
+                hclCanvas.clip(rect.left - this.shadow, rect.top, rect.width + this.shadow + this.shadow, rect.bottom + this.shadow);
+                hclCanvas.fillRectShadow(rect, this.shadow);
+            } finally {
+                hclCanvas.restore();
+            }
+        } else
+            hclCanvas.fillRectShadow(rect, this.shadow);
+    }
+
     get path() {
         return this._path;
     }

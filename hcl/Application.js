@@ -77,8 +77,10 @@ class TApplication extends TObject {
     }
 
     _resize_() {
-        this.mainForm.width = hcl.width;
-        this.mainForm.height = hcl.height;
+        if (this.mainForm) {
+            this.mainForm.width = hcl.width;
+            this.mainForm.height = hcl.height;
+        }
     }
 
     setFocusControl_(control, accept) { }  // eslint-disable-line
@@ -213,11 +215,13 @@ class TApplication extends TObject {
         // }
 
         this._activeForm = this._mouseMoveForm;
-        let vMouseArgs = new TMouseEventArgs();
-        vMouseArgs.assign(e);
-        vMouseArgs.x -= this._mouseMoveForm.left;
-        vMouseArgs.y -= this._mouseMoveForm.top;
-        this._mouseMoveForm.mouseDown(vMouseArgs);
+        if (this._mouseMoveForm) {
+            let vMouseArgs = new TMouseEventArgs();
+            vMouseArgs.assign(e);
+            vMouseArgs.x -= this._mouseMoveForm.left;
+            vMouseArgs.y -= this._mouseMoveForm.top;
+            this._mouseMoveForm.mouseDown(vMouseArgs);
+        }
 
         // 处理首次点击在mousedown里得到了desgncontrol然后直接拖动
         if (hcl.design && this.pointAtDesignControl(e.x ,e.y)) {
@@ -308,9 +312,11 @@ class TApplication extends TObject {
             return;
         }
 
-        e.x -= this._mouseMoveForm.left;
-        e.y -= this._mouseMoveForm.top;
-        this._mouseMoveForm.mouseUp(e);
+        if (this._mouseMoveForm) {
+            e.x -= this._mouseMoveForm.left;
+            e.y -= this._mouseMoveForm.top;
+            this._mouseMoveForm.mouseUp(e);
+        }
     }
 
     mouseUp(e) {
@@ -481,7 +487,9 @@ class TApplication extends TObject {
 
     run() {
         this._runing = true;
-        this.mainForm.show();
+        if (this.mainForm)
+            this.mainForm.show();
+
         hcl.applicationRun();
     }
 

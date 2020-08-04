@@ -322,9 +322,12 @@ class THCL extends TObject {
     }
 
     _killFocusControl_(app, control) {
-        if (this._caret.visible) {
+        if (this._caret.visible)
             this._destroyCaret_(this._caret.control);
-        }
+
+        /* 失去焦点时，取消输入法，防止原焦点控件忘记处理取消输入法，下次按键内容传递给原来焦点控件，
+        设置焦点时因为浏览器在鼠标弹起时才激活的问题，所以放在了各控件自己的mouse事件中 */
+        ime.removeControl(control);
     }
 
     _closePopupControl_(popupControl) {
@@ -578,46 +581,113 @@ class THCL extends TObject {
         return null;
     }
 
+
+    //window.onkeydown = (e) =>
+    windowKeyDown_(e) {
+        //if (e.target === ime._input)  // 非输入型控件为什么不能接收按键
+        if (this._focus)
+            this._keyDown(e);
+        //else
+        //    e.preventDefault();
+    }
+
+    //window.onkeypress = (e) =>
+    windowKeyPress_(e) {
+        //if (e.target === ime._input)
+        if (this._focus)
+            this._keyPress(e);
+        //else
+        //    e.preventDefault();
+    }
+
+    //window.onkeyup = (e) =>
+    windowKeyUp_(e) {
+        //if (e.target === ime._input)  // 为什么要这样呢，导致快捷键比如shift + tab弹起时不能取消shift
+        if (this._focus)
+            this._keyUp(e);
+        //else
+        //    e.preventDefault();
+    }
+
+    //window.onresize = (e) =>
+    windowResize_(e) {
+        this._resize();
+        //e.preventDefault();
+    }
+
+    //window.onfocus = (e) =>
+    windowFocus_(e) {
+        this._clearKeyState();
+    }
+
     _initBindEvent() {
         if (!this._parentElement)
             return;
-            
-        window.onkeydown = (e) => {
-            //if (e.target === ime._input)  // 非输入型控件为什么不能接收按键
-            if (this._focus)
-                this._keyDown(e);
-            //else
-            //    e.preventDefault();
-        }
+        
+        window.removeEventListener("keydown", windowKeyDown);
+        window.addEventListener("keydown", windowKeyDown, false);  // 冒泡事件 true：捕获事件
 
-        window.onkeypress = (e) => {
-            //if (e.target === ime._input)
-            if (this._focus)
-                this._keyPress(e);
-            //else
-            //    e.preventDefault();
-        }
+        window.removeEventListener("keypress", windowKeyPress, false);
+        window.addEventListener("keypress", windowKeyPress, false);
 
-        window.onkeyup = (e) => {
-            if (e.target === ime._input)
-                this._keyUp(e);
-            //else
-            //    e.preventDefault();
-        }
+        window.removeEventListener("keyup", windowKeyUp);
+        window.addEventListener("keyup", windowKeyUp, false);
 
-        window.onresize = (e) => {
-            this._resize();
-            //e.preventDefault();
-        }
+        window.removeEventListener("resize", windowResize);
+        window.addEventListener("resize", windowResize, false);
+
+        window.removeEventListener("focus", windowFocus);
+        window.addEventListener("focus", windowFocus, false);
 
         if (this._parentElement === document.body)
             document.body.parentNode.style.overflowY = "hidden";
 
-        document.body.oncontextmenu = function(e) {
+        this._parentElement.oncontextmenu = function(e) {
             e.returnValue = false;
         }
 
         ime._hclLoaded_(this);
+    }
+
+    //window.onmousedown = (e) =>
+    windowMouseDown_(e) {
+        if (e.target != this._hclH5Canvas) {
+            this._focus = false;
+            application.killFocusControl_();
+            if (this._idleInterval.enabled) {
+                this._idleInterval.enabled = false;
+                this._cancelIdle();
+            }
+        } else {
+            this._focus = true;
+            if (!this._idleInterval.enabled)
+                this._idleInterval.enabled = true;
+        }
+    }
+
+    //window.onmousemove = (e) =>
+    windowMouseMove_(e) {
+        if (e.target != this._hclH5Canvas) {
+            this._mouseIn = false;
+            this._cancelIdle();
+        } else
+            this._mouseIn = true;
+    }
+
+    //window.onload =  (e) =>
+    windowLoad_(e) {
+        this._loaded = true;
+        e.preventDefault();
+    }
+
+    //window.document.onvisibilitychange = (e) => 
+    windowDocVisibilitychange_(e) {
+        if (window.document.hidden)
+            this._deactivate();
+        else
+            this._activate();
+
+        e.preventDefault();
     }
 
     _initEvent() {
@@ -664,42 +734,17 @@ class THCL extends TObject {
             this._dblClick(this._makeMouseEventArgs(e));
         }
 
-        window.onmousedown = (e) => {
-            if (e.target != this._hclH5Canvas) {
-                this._focus = false;
-                application.killFocusControl_();
-                if (this._idleInterval.enabled) {
-                    this._idleInterval.enabled = false;
-                    this._cancelIdle();
-                }
-            } else {
-                this._focus = true;
-                if (!this._idleInterval.enabled)
-                    this._idleInterval.enabled = true;
-            }
-        }
+        window.removeEventListener("mousedown", windowMouseDown);
+        window.addEventListener("mousedown", windowMouseDown, false);
 
-        window.onmousemove = (e) => {
-            if (e.target != this._hclH5Canvas) {
-                this._mouseIn = false;
-                this._cancelIdle();
-            } else
-                this._mouseIn = true;
-        }
+        window.removeEventListener("mousemove", windowMouseMove);
+        window.addEventListener("mousemove", windowMouseMove, false);
 
-        window.onload = (e) => {
-            this._loaded = true;
-            e.preventDefault();
-        }
+        window.removeEventListener("load", windowLoad);
+        window.addEventListener("load", windowLoad, false);
 
-        window.document.onvisibilitychange = (e) => {
-            if (window.document.hidden)
-                this._deactivate();
-            else
-                this._activate();
-
-            e.preventDefault();
-        }
+        window.document.removeEventListener("visibilitychange", windowDocVisibilitychange);
+        window.document.addEventListener("visibilitychange", windowDocVisibilitychange, false);
 
         this._initBindEvent();
     }
@@ -744,6 +789,9 @@ class THCL extends TObject {
     }
     
     _resize() {
+        if (!this._parentElement)
+            return;
+            
         this.beginUpdate();
         try {
             if (this._autoWidth) {
@@ -1005,6 +1053,11 @@ class THCL extends TObject {
         return vKeyArgs;
     }
 
+    _clearKeyState() {
+        for (let i = 0, len = this.keyDownStates.length; i < len; i++)
+            this.keyDownStates[i] = false;
+    }
+
     _setKeyState(keyCode, code, down) {
         this.keyDownStates[keyCode] = down;
         switch (code) {
@@ -1213,5 +1266,15 @@ class THCL extends TObject {
 
     onCatch(err) { }
 }
+
+function windowMouseDown(e) { hcl.windowMouseDown_(e); }
+function windowMouseMove(e) { hcl.windowMouseMove_(e); }
+function windowLoad(e) { hcl.windowLoad_(e); }
+function windowDocVisibilitychange(e) { hcl.windowDocVisibilitychange_(e); }
+function windowKeyDown(e) { hcl.windowKeyDown_(e); }
+function windowKeyPress(e) { hcl.windowKeyPress_(e); }
+function windowKeyUp(e) { hcl.windowKeyUp_(e); }
+function windowResize(e) { hcl.windowResize_(e); }
+function windowFocus(e) { hcl.windowFocus_(e); }
 
 export var hcl = new THCL();

@@ -29,18 +29,22 @@ TFileType.PNG = "image/png";
 TFileType.BMP = "application/x-bmp";
 TFileType.JPEG = "image/jpeg";
 TFileType.IMAGE = TFileType.PNG + "," + TFileType.JPEG + "," + TFileType.BMP;
+TFileType.PDF = "application/pdf";
 
 /**
  * HCL类：系统类(已实例化为system，无需重复实例化)
  */
 class TSystem {
+    constructor() {
+        this.lineBreak = "\r\n";    
+    }
+
     getDPI() {
         let vDPI = {};
         if (window.screen.deviceXDPI != undefined ) {
             vDPI.x = window.screen.deviceXDPI;
             vDPI.y = window.screen.deviceYDPI;
-        }
-        else {
+        } else {
             let vNode = document.createElement("div");
             vNode.style.cssText = "width:1in;height:1in;position:absolute;left:0px;top:0px;z-index:99;visibility:hidden";
             document.body.appendChild(vNode);
@@ -97,6 +101,14 @@ class TSystem {
             return vR;
     }
 
+    parseIntDef(s, def) {
+        let vR = parseInt(s);
+        if (isNaN(vR))
+            return def;
+        else
+            return vR;
+    }
+
     assigned(obj) {
         //return obj != null;
         return typeof(obj) != "undefined";
@@ -130,9 +142,38 @@ class TSystem {
  */
 export let system = new TSystem();
 
+export class TObjectArray extends Array {
+    constructor(len) {
+        super(len);
+        this.fill(null);
+    }
+}
+
+export class TIntegerArray extends Array {
+    constructor(len) {
+        super(len);
+        this.fill(0);
+    }
+}
+
+export class TByteArray extends Array {
+    constructor(len) {
+        super(len);
+        this.fill(0);
+    }
+}
+
+export class TBooleanArray extends Array {
+    constructor(len) {
+        super(len);
+        this.fill(false);
+    }
+}
+
 export class TBytes extends Array {
     constructor(len) {
         super(len);
+        this.fill(0);
     }
 
     static fromBase64(base64) {
@@ -190,22 +231,41 @@ export class TUtf8Encoding extends TEncoding {
         super();
     }
 
+    static getBytes(str) {
+        let vArr = new TBytes(0), vCharCode;
+        for (let i = 0, vLen = str.length; i < vLen; i++) {
+            vCharCode = str.charCodeAt(i);
+            if (vCharCode >= 0 && vCharCode <= 0x7f)
+                vArr.push(vCharCode);
+            else if (vCharCode >= 0x80 && vCharCode <= 0x7ff) {
+                vArr.push(0xC0 | ((vCharCode >> 6) & 0x1F));
+                vArr.push(0x80 | (vCharCode & 0x3F));
+            } else if (vCharCode >= 0x800 && vCharCode <= 0xffff) {
+                vArr.push(0xE0 | ((vCharCode >> 12) & 0x0F));
+                vArr.push(0x80 | ((vCharCode >> 6) & 0x3F));
+                vArr.push(0x80 | (vCharCode & 0x3F));
+            }
+        }
+
+        return vArr;
+    }
+
     getByteCount(str) {
         let vCharCode, vResult = 0;
         for (let i = 0, vLen = str.lenght; i < vLen; i++) {
             vCharCode = str.charCodeAt(i);
-        if (vCharCode >= 0 && vCharCode <= 0x7f)
-            vResult += 1;
-        else if (vCharCode >= 0x80 && vCharCode <= 0x7ff)
-            vResult += 2;
-        else if (vCharCode >= 0x800 && vCharCode <= 0xffff)
-            vResult += 3;
-        else if (vCharCode > 0x10000 && vCharCode <= 0x1FFFFF)
-            vResult += 4;
-        else if (vCharCode > 0x200000 && vCharCode <= 0x3FFFFFF)
-            vResult += 5;
-        else if (vCharCode > 0x4000000 && vCharCode <= 0x7FFFFFFF)
-            vResult += 6;
+            if (vCharCode >= 0 && vCharCode <= 0x7f)
+                vResult += 1;
+            else if (vCharCode >= 0x80 && vCharCode <= 0x7ff)
+                vResult += 2;
+            else if (vCharCode >= 0x800 && vCharCode <= 0xffff)
+                vResult += 3;
+            else if (vCharCode > 0x10000 && vCharCode <= 0x1FFFFF)
+                vResult += 4;
+            else if (vCharCode > 0x200000 && vCharCode <= 0x3FFFFFF)
+                vResult += 5;
+            else if (vCharCode > 0x4000000 && vCharCode <= 0x7FFFFFFF)
+                vResult += 6;
         }
 
         return vResult;
@@ -1206,7 +1266,7 @@ export class TQueue extends Array {
     }
 }
 
-export class TMap { }
+//export class TMap { }
 
 export class TDictionary extends TList {
     constructor(ownsObjects = true) {
