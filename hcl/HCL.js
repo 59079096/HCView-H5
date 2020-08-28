@@ -8,14 +8,24 @@
     
 =======================================================*/
 
-import { application } from "./Application.js";
 import { TCaret, TCursors, TKey, TKeyEventArgs, TMouseButton, TMouseEventArgs, TPopupWinControl, TShiftState, TMessage } from "./Controls.js";
 import { THintInfo, TInterval } from "./ExtCtrls.js";
 import { TMessageDialog } from "./Forms.js";
 import { THCCanvas } from "./Graphics.js";
-import { TList, TObject, TPoint, TRect } from "./System.js";
-import { theme } from "./theme.js";
-import { ime } from "./Ime.js";
+import { TList, TObject, TPoint, TRect, TSystem } from "./System.js";
+import { TTheme } from "./theme.js";
+import { TIme } from "./Ime.js";
+import { TClipboard, TLocalStorage } from "./Clipboard.js";
+import { TApplication } from "./Application.js";
+
+export let TBorwerType = {
+    Chrome: 1,
+    Firefox: 2,
+    Safari: 3,
+    Opera: 4,
+    IE: 5
+
+}
 
 class TWaitInfo extends TObject {
     constructor(text) {
@@ -31,13 +41,22 @@ class TWaitList extends TList {
     }
 }
 
-class THCL extends TObject {
+export class THCL extends TObject {
     constructor() {
         super();
 
+        this.debug = false;
+        this.brower = this.__GetBrowerType();
+        this.system = new TSystem();
+        this.ime = new TIme();
+        this.clipboard = new TClipboard();
+        this.localStorage = new TLocalStorage();
+        this.theme = new TTheme();
+        this.theme.onImageLoad = () => { this.update(); }
+
+        this._curApplication = null;
         this._updateCount = 0;
         this._handleSeq = 1000;
-        theme.onImageLoad = () => { this.update(); }
         this._cursorPos = new TPoint();
         this._cursor = TCursors.Default;
         this._cursorControl = null;
@@ -89,33 +108,80 @@ class THCL extends TObject {
             this.update();
         }
 
+        // 绑定页面事件
+        this.__windowKeyDown = (e) => { this.windowKeyDown_(e) }
+        this.__windowKeyPress = (e) => { this.windowKeyPress_(e); }
+        this.__windowKeyUp = (e) => { this.windowKeyUp_(e); }
+        this.__windowResize = (e) => { this.windowResize_(e); }
+        this.__windowFocus = (e) => { this.windowFocus_(e); }
+
+        this.__windowMouseMove = (e) => { this.windowMouseMove_(e); }
+        this.__windowMouseDown = (e) => { this.windowMouseDown_(e); }
+        this.__windowMouseWheel = (e) => { if (e.target === this._hclH5Canvas) this._mouseWheel(e); }
+
+        this.__windowLoad = (e) => { this.windowLoad_(e); }
+        this.__windowDocVisibilitychange = (e) => { this.windowDocVisibilitychange_(e); }
+
         this._hoverHintInfo = new THintInfo();
 
         this._scale = 1;
-        this._hclH5Canvas = document.createElement("canvas");
-        this._hclH5Canvas.setAttribute("id", "h5canvas");
-        this._hclH5Canvas.width = this.width_;
-        this._hclH5Canvas.height = this.height_;
-        this._hclH5Canvas.style.position = "absolute";
-        this._hclH5Canvas.style.left = this.left_ + "px";
-        this._hclH5Canvas.style.top = "0px";
-        this._hclH5Canvas.style.imeMode = "active";
-        this._hclCanvas = new THCCanvas(this._hclH5Canvas.getContext("2d"));
 
-        this._appH5Canvas = document.createElement("canvas");
-        //this._popupH5Canvas.style.position = "absolute";
-        this._appCanvas = new THCCanvas(this._appH5Canvas.getContext("2d"));
+        // 各canvas在parentElement事件中创建
+        this._hclH5Canvas = null;
+        this._hclCanvas = null;
+        this._appH5Canvas = null;
+        this._appCanvas = null;
+        this._popupH5Canvas = null;
+        this._popupCanvas = null;
 
-        this._popupH5Canvas = document.createElement("canvas");
-        //this._popupH5Canvas.style.position = "absolute";
-        this._popupCanvas = new THCCanvas(this._popupH5Canvas.getContext("2d"));
+        this.parentElement = null;
+    }
 
-        this.parentElement = document.body;
-        this._initEvent();
+    static createInstance() {
+        if (!hclIinstance)
+            hclIinstance = new THCL();
+    }
+
+    static disposeInstance() {
+        if (hclIinstance) {
+            hclIinstance.dispose();
+            hclIinstance = null;
+        }
+    }
+
+    __GetBrowerType() {
+        let vExplorer = window.navigator.userAgent;
+        //console.log(vExplorer);
+        //if (vExplorer.indexOf("MSIE") >= 0)  // 这样的判断不支持 IE11
+        if (!!window.ActiveXObject || "ActiveXObject" in window) {
+            if (CanvasRenderingContext2D.prototype.ellipse == undefined) {  // Canvas兼容 IE11
+                CanvasRenderingContext2D.prototype.ellipse = function(x, y, radiusX, radiusY, rotation, startAngle, endAngle, antiClockwise) {
+                    this.save();
+                    this.translate(x, y);
+                    this.rotate(rotation ? rotation : 0);
+                    this.scale(radiusX, radiusY);
+                    this.arc(0, 0, 1,
+                        startAngle ? startAngle : 0,
+                        endAngle ? endAngle : Math.PI,
+                        antiClockwise ? antiClockwise : true);
+                
+                    this.restore();
+                }
+            }
+
+            return TBorwerType.IE;
+        } else if (vExplorer.indexOf("Firefox") >= 0)
+            return TBorwerType.FireFox;
+        else if(vExplorer.indexOf("Chrome") >= 0)
+            return TBorwerType.Chrome;
+        else if(vExplorer.indexOf("Opera") >= 0)
+            return TBorwerType.Opera;
+        else if(vExplorer.indexOf("Safari") >= 0)
+            return TBorwerType.Safari;
     }
 
     //#region 光标
-    _createCaret_(control, image, width, height) {
+    __createCaret(control, image, width, height) {
         this._resetCaret_();
         this._caret.reset();
         this._caret.control = control;
@@ -255,13 +321,13 @@ class THCL extends TObject {
 
         let vPt = control.clientToScreenAt(0, 0);
         this._hoverHintInfo.rect = control.getHintRect();  // 控件提供的Hint区域
-        if (this._hoverHintInfo.rect.bottom + this._hoverHintInfo.rect.height + vPt.y + theme.marginSpace > this.height_)
-            this._hoverHintInfo.rect.offset(vPt.x, vPt.y - this._hoverHintInfo.rect.height - theme.marginSpace);
+        if (this._hoverHintInfo.rect.bottom + this._hoverHintInfo.rect.height + vPt.y + this.theme.marginSpace > this.height_)
+            this._hoverHintInfo.rect.offset(vPt.x, vPt.y - this._hoverHintInfo.rect.height - this.theme.marginSpace);
         else
-            this._hoverHintInfo.rect.offset(vPt.x, vPt.y + this._hoverHintInfo.rect.height + theme.marginSpace);
+            this._hoverHintInfo.rect.offset(vPt.x, vPt.y + this._hoverHintInfo.rect.height + this.theme.marginSpace);
 
         this._hoverHintInfo.text = control.hint;
-        this._hoverHintInfo.rect.resetSize(theme.getHoverHintSize(control.hint));
+        this._hoverHintInfo.rect.resetSize(this.theme.getHoverHintSize(control.hint));
 
         if (this._hoverHintInfo.rect.left < 0)
             vPt.x = this._hoverHintInfo.rect.left;
@@ -303,7 +369,7 @@ class THCL extends TObject {
             this._cursorControl = control;
             if (this._cursor != control.cursor) {
                 this._cursor = control.cursor;
-                this._hclH5Canvas.style.cursor = theme.getCSSCursor(this._cursor);
+                this._hclH5Canvas.style.cursor = this.theme.getCSSCursor(this._cursor);
             }
         }
     }
@@ -327,7 +393,7 @@ class THCL extends TObject {
 
         /* 失去焦点时，取消输入法，防止原焦点控件忘记处理取消输入法，下次按键内容传递给原来焦点控件，
         设置焦点时因为浏览器在鼠标弹起时才激活的问题，所以放在了各控件自己的mouse事件中 */
-        ime.removeControl(control);
+        this.ime.removeControl(control);
     }
 
     _closePopupControl_(popupControl) {
@@ -372,11 +438,11 @@ class THCL extends TObject {
 
         if (root) {
             if (popupControl.adjustPosition) {
-                if (popupControl.left + popupControl.width + theme.shadow > vRight)
-                    popupControl.left = vRight - popupControl.width - theme.shadow;
+                if (popupControl.left + popupControl.width + this.theme.shadow > vRight)
+                    popupControl.left = vRight - popupControl.width - this.theme.shadow;
 
-                if (popupControl.top + popupControl.height + theme.shadow > vBottom)
-                    popupControl.top = vBottom - popupControl.height - theme.shadow;
+                if (popupControl.top + popupControl.height + this.theme.shadow > vBottom)
+                    popupControl.top = vBottom - popupControl.height - this.theme.shadow;
             }
 
             let vPopupLinkedList = new TList();
@@ -396,11 +462,11 @@ class THCL extends TObject {
             this._popupLayer.last.last.next = popupControl;
 
             if (popupControl.adjustPosition) {
-                if (popupControl.left + popupControl.width + theme.shadow > vRight)
+                if (popupControl.left + popupControl.width + this.theme.shadow > vRight)
                    popupControl.left = popupControl.forward.left - popupControl.width;
 
-                if (popupControl.top + popupControl.height + theme.shadow > vBottom)
-                    popupControl.top = vBottom - popupControl.height - theme.shadow;
+                if (popupControl.top + popupControl.height + this.theme.shadow > vBottom)
+                    popupControl.top = vBottom - popupControl.height - this.theme.shadow;
             }
 
             popupControl.popupLinkedList = this._popupLayer.last;
@@ -415,7 +481,7 @@ class THCL extends TObject {
         if (vControl !== null)
             return vControl;
         else
-            return application.getControlAtPos(x, y);
+            return this.application.getControlAtPos(x, y);
     } 
 
     _reAdjustMouseMove() {
@@ -482,7 +548,7 @@ class THCL extends TObject {
     _waitListMouseMove(e) {
         if (this._waitListResponsive(e)) {
             this._cursor = TCursors.Arrow;
-            this._hclH5Canvas.style.cursor = theme.getCSSCursor(this._cursor);
+            this._hclH5Canvas.style.cursor = this.theme.getCSSCursor(this._cursor);
             return true;
         }
 
@@ -539,6 +605,7 @@ class THCL extends TObject {
             vMouseArgs.y = e.y - this._capturePopupControl.top;
             this._capturePopupControl.mouseUp(vMouseArgs);
             this._capturePopupControl = null;
+            this._mouseMovePopupControl = null;  // 防止不动位置继续左键按下取到movepopup又触发上次事件
             return true;
         }
 
@@ -611,7 +678,7 @@ class THCL extends TObject {
 
     //window.onresize = (e) =>
     windowResize_(e) {
-        this._resize();
+        this.resize();
         //e.preventDefault();
     }
 
@@ -620,77 +687,36 @@ class THCL extends TObject {
         this._clearKeyState();
     }
 
+    _removeBindEvent() {
+        window.removeEventListener("keydown", this.__windowKeyDown);
+        window.removeEventListener("keypress", this.__windowKeyPress, false);
+        window.removeEventListener("keyup", this.__windowKeyUp);
+        window.removeEventListener("resize", this.__windowResize);
+        window.removeEventListener("focus", this.__windowFocus);
+        window.removeEventListener("mousedown", this.__windowMouseDown);
+        window.removeEventListener("mousemove", this.__windowMouseMove);
+        window.removeEventListener("load", this.__windowLoad);
+        //window.removeEventListener("focus")
+        //window.removeEventListener("blur")
+        window.document.removeEventListener("visibilitychange", this.__windowDocVisibilitychange);
+        if (this.brower == TBorwerType.Firefox)
+            window.removeEventListener("DOMMouseScroll", this.__windowMouseWheel);
+    }
+
     _initBindEvent() {
-        if (!this._parentElement)
-            return;
-        
-        window.removeEventListener("keydown", windowKeyDown);
-        window.addEventListener("keydown", windowKeyDown, false);  // 冒泡事件 true：捕获事件
+        this._removeBindEvent();  // 先移除了
 
-        window.removeEventListener("keypress", windowKeyPress, false);
-        window.addEventListener("keypress", windowKeyPress, false);
+        window.addEventListener("keydown", this.__windowKeyDown, false);  // 冒泡事件 true：捕获事件
+        window.addEventListener("keypress", this.__windowKeyPress, false);
+        window.addEventListener("keyup", this.__windowKeyUp, false);
+        window.addEventListener("resize", this.__windowResize, false);
+        window.addEventListener("focus", this.__windowFocus, false);
+        //windowMouseDown(e) { this.windowMouseDown_(e); }  // 如果封装成方法，由window触发时这里的this是window，并不是hcl
+        window.addEventListener("mousedown", this.__windowMouseDown, false);
+        window.addEventListener("mousemove", this.__windowMouseMove, false);
+        window.addEventListener("load", this.__windowLoad, false);
+        window.document.addEventListener("visibilitychange", this.__windowDocVisibilitychange, false);
 
-        window.removeEventListener("keyup", windowKeyUp);
-        window.addEventListener("keyup", windowKeyUp, false);
-
-        window.removeEventListener("resize", windowResize);
-        window.addEventListener("resize", windowResize, false);
-
-        window.removeEventListener("focus", windowFocus);
-        window.addEventListener("focus", windowFocus, false);
-
-        if (this._parentElement === document.body)
-            document.body.parentNode.style.overflowY = "hidden";
-
-        this._parentElement.oncontextmenu = function(e) {
-            e.returnValue = false;
-        }
-
-        ime._hclLoaded_(this);
-    }
-
-    //window.onmousedown = (e) =>
-    windowMouseDown_(e) {
-        if (e.target != this._hclH5Canvas) {
-            this._focus = false;
-            application.killFocusControl_();
-            if (this._idleInterval.enabled) {
-                this._idleInterval.enabled = false;
-                this._cancelIdle();
-            }
-        } else {
-            this._focus = true;
-            if (!this._idleInterval.enabled)
-                this._idleInterval.enabled = true;
-        }
-    }
-
-    //window.onmousemove = (e) =>
-    windowMouseMove_(e) {
-        if (e.target != this._hclH5Canvas) {
-            this._mouseIn = false;
-            this._cancelIdle();
-        } else
-            this._mouseIn = true;
-    }
-
-    //window.onload =  (e) =>
-    windowLoad_(e) {
-        this._loaded = true;
-        e.preventDefault();
-    }
-
-    //window.document.onvisibilitychange = (e) => 
-    windowDocVisibilitychange_(e) {
-        if (window.document.hidden)
-            this._deactivate();
-        else
-            this._activate();
-
-        e.preventDefault();
-    }
-
-    _initEvent() {
         this._hclH5Canvas.onmousedown = (e) => {
             this._mouseDown(this._makeMouseEventArgs(e));
             //e.preventDefault();
@@ -721,9 +747,10 @@ class THCL extends TObject {
             //e.preventDefault();
         }
 
-        this._hclH5Canvas.onmousewheel = (e) => {
-            this._mouseWheel(e);
-        }
+        if (this.brower == TBorwerType.Firefox)
+            window.addEventListener("DOMMouseScroll", this.__windowMouseWheel, false); 
+        else
+            this._hclH5Canvas.onmousewheel = (e) => { this._mouseWheel(e); }
 
         this._hclH5Canvas.onmouseleave = (e) => {
             this._mouseLeave(this._makeMouseEventArgs(e));
@@ -732,21 +759,73 @@ class THCL extends TObject {
 
         this._hclH5Canvas.ondblclick = (e) => {
             this._dblClick(this._makeMouseEventArgs(e));
+        }                
+
+        if (this._parentElement === document.body)
+            document.body.parentNode.style.overflowY = "hidden";
+
+        this._parentElement.oncontextmenu = function(e) {
+            e.returnValue = false;  // 屏蔽容器的右键菜单，还没有适配fireFox
         }
 
-        window.removeEventListener("mousedown", windowMouseDown);
-        window.addEventListener("mousedown", windowMouseDown, false);
+        this.ime.__hclLoaded(this);
+    }
 
-        window.removeEventListener("mousemove", windowMouseMove);
-        window.addEventListener("mousemove", windowMouseMove, false);
+    //window.onmousedown = (e) =>
+    windowMouseDown_(e) {
+        if (e.target != this._hclH5Canvas) {
+            this._focus = false;
+            this.application.killFocusControl_();
+            if (this._idleInterval.enabled) {
+                this._idleInterval.enabled = false;
+                this._cancelIdle();
+            }
+        } else {
+            this._focus = true;
+            if (!this._idleInterval.enabled)
+                this._idleInterval.enabled = true;
+        }
+    }
 
-        window.removeEventListener("load", windowLoad);
-        window.addEventListener("load", windowLoad, false);
+    //window.onmousemove = (e) =>
+    windowMouseMove_(e) {
+        if (e.target != this._hclH5Canvas) {
+            this._mouseIn = false;
+            this._cancelIdle();
+        } else
+            this._mouseIn = true;
+    }
 
-        window.document.removeEventListener("visibilitychange", windowDocVisibilitychange);
-        window.document.addEventListener("visibilitychange", windowDocVisibilitychange, false);
+    //window.onload =  (e) =>
+    windowLoad_(e) {
+        this._loaded = true;
+        e.preventDefault();
+    }
 
-        this._initBindEvent();
+    //window.document.onvisibilitychange = (e) => 
+    windowDocVisibilitychange_(e) {
+        if (window.document.hidden)  // 页面在后台标签页中或者浏览器最小化
+            this._deactivate();
+        else
+            this._activate();
+
+        e.preventDefault();
+    }
+
+    dispose() {
+        this._removeBindEvent();
+
+        if (this._parentElement != null) {
+            this.ime.__hclUnLoaded(this);
+            this._parentElement.removeChild(this._hclH5Canvas);
+        }
+
+        this.ime = null;
+        this.system = null;
+        this.clipboard = null;
+        this.localStorage.clear();
+        this.localStorage = null;
+        this.theme = null;
     }
 
     _windowToCanvas(h5canvas, x, y) {
@@ -785,10 +864,13 @@ class THCL extends TObject {
     }
 
     applicationRun() {
-        this._resize();
+        if (!this._parentElement)
+            this.parentElement = document.body;
+
+        this.resize();
     }
     
-    _resize() {
+    resize() {
         if (!this._parentElement)
             return;
             
@@ -821,8 +903,8 @@ class THCL extends TObject {
             this._popupH5Canvas.height = this.height_;
             this._popupCanvas.prepareConext(this._scale);
 
-            if (application != null)
-                application._resize_();
+            if (this.application != null)
+                this.application._resize_();
         }
         finally {
             this.endUpdate();
@@ -848,7 +930,7 @@ class THCL extends TObject {
         try {
             this._appCanvas.clearRect(rect); 
             this._appCanvas.clipRect(rect);
-            application.paint(this._appCanvas);
+            this.application.paint(this._appCanvas);
         } finally {
             this._appCanvas.restore();
         }
@@ -883,13 +965,16 @@ class THCL extends TObject {
 
     _paintHintLayer() {
         if (this._hoverHintInfo.visible)
-            theme.drawHoverHint(this._hclCanvas, this._hoverHintInfo);
+            this.theme.drawHoverHint(this._hclCanvas, this._hoverHintInfo);
     }
 
     _paint(rect) {
-        if (application != null && application.runing) {
+        if (this.application != null && this.application.runing) {
             this._hclCanvas.save();
             try {
+                if (this.brower == TBorwerType.Safari)
+                    rect.reset(0, 0, this.width_, this.height_);
+
                 // 清除以前的图像，防止反走样重复绘制时锯齿叠加
                 this._hclCanvas.clearRect(rect);  // 如果不清除，同一位置菜单多次绘制时阴影叠加导致加深
                 // this._hclCanvas.brush.color = "White";
@@ -920,12 +1005,12 @@ class THCL extends TObject {
     }
 
     _deactivate() {
-        //application.deactivate();
+        //this.application.deactivate();
         this._cursorControl = null;
     }
 
     _activate() {   
-        //application.activate();
+        //this.application.activate();
         this.update();
     }
 
@@ -933,13 +1018,13 @@ class THCL extends TObject {
         let vPoint = this._windowToCanvas(this._hclH5Canvas, e.clientX, e.clientY);
         let vMouseArgs = new TMouseEventArgs();
         if (e.ctrlKey)
-            vMouseArgs.shift.add(TShiftState.Ctrl);
+            vMouseArgs.shiftState.add(TShiftState.Ctrl);
 
         if (e.altKey)
-            vMouseArgs.shift.add(TShiftState.Alt);
+            vMouseArgs.shiftState.add(TShiftState.Alt);
 
         if (e.shiftKey)
-            vMouseArgs.shift.add(TShiftState.Shift);
+            vMouseArgs.shiftState.add(TShiftState.Shift);
 
         if (e.buttons == 0) {
             if (e.button == 1)
@@ -957,26 +1042,30 @@ class THCL extends TObject {
 
         vMouseArgs.x = vPoint.x;
         vMouseArgs.y = vPoint.y;
-        vMouseArgs.delta = e.wheelDelta;
+        if (e.wheelDelta)  // IE/Opera/Chrome 
+            vMouseArgs.delta = e.wheelDelta;
+        else
+            vMouseArgs.delta = -e.detail * 40;  // Firefox 
+
         vMouseArgs.clicks = e.detail;
         return vMouseArgs;
     }
 
     _mouseEnter(e) {
         let vMouseArgs = this._makeMouseEventArgs(e);
-        application.mouseEnter(vMouseArgs);
+        this.application.mouseEnter(vMouseArgs);
     }
 
     _mouseLeave(e) {
         let vMouseArgs = this._makeMouseEventArgs(e);
-        application.mouseLeave(vMouseArgs);
+        this.application.mouseLeave(vMouseArgs);
     }
 
     _mouseWheel(e) {
         this._cancelIdle();
         let vMouseArgs = this._makeMouseEventArgs(e);        
         if (!this._popupMouseWheel(vMouseArgs))
-            application.mouseWheel(vMouseArgs);
+            this.application.mouseWheel(vMouseArgs);
     }
 
     _mouseDown(e) {
@@ -988,7 +1077,7 @@ class THCL extends TObject {
         if (this._popupMouseDown(e))
             this._captureLayer = this._popupLayer;
         else {
-            application.mouseDown(e);
+            this.application.mouseDown(e);
             this._captureLayer = this._applicationLayer;
         }
     }
@@ -1008,13 +1097,13 @@ class THCL extends TObject {
         if (!this._popupMouseMove(e)) {
             if (this._mouseMoveLayer != this._applicationLayer) {
                 this._mouseMoveLayer = this._applicationLayer;
-                application.mouseEnter(e);
+                this.application.mouseEnter(e);
             }
 
-            application.mouseMove(e);
+            this.application.mouseMove(e);
         } else if (this._mouseMoveLayer != this._popupLayer) {
             this._mouseMoveLayer = this._popupLayer;
-            application.mouseLeave(e);
+            this.application.mouseLeave(e);
             this._setCursorBy_(this._mouseMovePopupControl);  // this._getPopupControlAt(e.x, e.y));
         }
     }
@@ -1027,26 +1116,26 @@ class THCL extends TObject {
             if (this._captureLayer == this._popupLayer)
                 this._popupMouseUp(e)
             else
-                application.mouseUp(e);
+                this.application.mouseUp(e);
         } finally {
             this._captureLayer = null;
         }
     }
 
     _dblClick(e) {
-        application.dblClick(e);
+        this.application.dblClick(e);
     }
 
     _makeKeyEventArgs(e) {
         let vKeyArgs = new TKeyEventArgs();
         if (e.ctrlKey)
-            vKeyArgs.shift.add(TShiftState.Ctrl);
+            vKeyArgs.shiftState.add(TShiftState.Ctrl);
 
         if (e.altKey)
-            vKeyArgs.shift.add(TShiftState.Alt);
+            vKeyArgs.shiftState.add(TShiftState.Alt);
 
         if (e.shiftKey)
-            vKeyArgs.shift.add(TShiftState.Shift);
+            vKeyArgs.shiftState.add(TShiftState.Shift);
 
         vKeyArgs.keyCode = e.keyCode;
         vKeyArgs.key = e.key;
@@ -1100,22 +1189,34 @@ class THCL extends TObject {
         let vKeyEvent = this._makeKeyEventArgs(e);
         this._setKeyState(e.keyCode, e.code, true);
 
-        if (!this._popupKeyDown(vKeyEvent))
-            application.keyDown(vKeyEvent);
+        this.ime.__innerPasted = true;
+        if (e.target === this.ime._input 
+            && (this.keyDownStates[TKey.ControlKey]
+            && this.keyDownStates[TKey.ShiftKey]
+            && e.keyCode == TKey.V)
+            )  // ctrl+shift+v粘贴外部复制的内容
+        {
+            //e.preventDefault;
+            this.ime.__innerPasted = false;
+        } else if (!this._popupKeyDown(vKeyEvent))
+            this.application.keyDown(vKeyEvent);
     }
 
     _keyPress(e) {
         this._cancelIdle();
         let vKeyEvent = this._makeKeyEventArgs(e);
         //this._setKeyState(e.keyCode, e.code, false);
+        if (e.target === this.ime._input)
+            return;
+            
         if (!this._popupKeyPress(vKeyEvent))
-            application.keyPress(vKeyEvent);
+        this.application.keyPress(vKeyEvent);
     }
 
     _keyUp(e) {
         let vKeyEvent = this._makeKeyEventArgs(e);
         this._setKeyState(e.keyCode, e.code, false);
-        application.keyUp(vKeyEvent);
+        this.application.keyUp(vKeyEvent);
     }
 
     handleAllocate() {
@@ -1146,7 +1247,10 @@ class THCL extends TObject {
         if (this._updateCount > 0)
             return;
 
-        this._paint(rect.inFlate(theme.shadow, theme.shadow, true));
+        if (this.brower == TBorwerType.IE)
+            this._paint(rect);  // IE11 上绘制不能小于0的坐标所以不inFlate
+        else
+            this._paint(rect.inFlate(this.theme.shadow, this.theme.shadow, true));
     }
 
     showMessage(text) {
@@ -1182,7 +1286,30 @@ class THCL extends TObject {
     }
 
     broadcast(message, wParam = 0, lParam = 0) {
-        application.broadcast(message, wParam, lParam);
+        this.application.broadcast(message, wParam, lParam);
+    }
+
+    exception(msg) {
+        throw "HCL异常:" + msg;
+    }
+
+    log(msg) {
+        console.log(msg);
+    }
+
+    returnFalseLog(msg) {
+        console.log(msg);
+        return false;
+    }
+
+    returnTrueLog(msg) {
+        console.log(msg);
+        return true;
+    }
+
+    debugLog(msg) {
+        if (this.debug)
+            console.log("hcl_debug：" + msg);
     }
 
     get parentElement() {
@@ -1192,8 +1319,27 @@ class THCL extends TObject {
     set parentElement(val) {
         if (val && (this._parentElement != val)) {
             this._parentElement = val;
+            this._hclH5Canvas = document.createElement("canvas");
+            this._hclH5Canvas.setAttribute("id", "hclH5canvas_" + this.system.Timestamp);
+            this._hclH5Canvas.innerText = "您的浏览器不支持canvas, 无法使用HC编辑器控件！";
+            this._hclH5Canvas.width = this.width_;
+            this._hclH5Canvas.height = this.height_;
+            this._hclH5Canvas.style.position = "absolute";
+            this._hclH5Canvas.style.left = this.left_ + "px";
+            this._hclH5Canvas.style.top = "0px";
+            this._hclH5Canvas.style.imeMode = "active";
+            this._hclCanvas = new THCCanvas(this._hclH5Canvas.getContext("2d"));
+    
+            this._appH5Canvas = document.createElement("canvas");
+            //this._popupH5Canvas.style.position = "absolute";
+            this._appCanvas = new THCCanvas(this._appH5Canvas.getContext("2d"));
+    
+            this._popupH5Canvas = document.createElement("canvas");
+            //this._popupH5Canvas.style.position = "absolute";
+            this._popupCanvas = new THCCanvas(this._popupH5Canvas.getContext("2d"));
+            
             val.appendChild(this._hclH5Canvas);  // 会调用removeChild从原元素中移除
-            this._resize();
+            this.resize();
             this._initBindEvent();
         }
     }
@@ -1205,7 +1351,7 @@ class THCL extends TObject {
     set autoWidth(val) {
         if (this._autoWidth != val) {
             this._autoWidth = val;
-            this._resize();
+            this.resize();
         }
     }
 
@@ -1216,7 +1362,7 @@ class THCL extends TObject {
     set autoHeight(val) {
         if (this._autoHeight != val) {
             this._autoHeight = val;
-            this._resize();
+            this.resize();
         }
     }
 
@@ -1257,24 +1403,23 @@ class THCL extends TObject {
     }
 
     get homePath() {
-        return theme.path;
+        return this.theme.path;
     }
 
     set homePath(val) {
-        theme.path = val;
+        this.theme.path = val;
+    }
+
+    get application() {
+        if (!this._curApplication)
+            this._curApplication = new TApplication();
+
+        return this._curApplication;
     }
 
     onCatch(err) { }
 }
 
-function windowMouseDown(e) { hcl.windowMouseDown_(e); }
-function windowMouseMove(e) { hcl.windowMouseMove_(e); }
-function windowLoad(e) { hcl.windowLoad_(e); }
-function windowDocVisibilitychange(e) { hcl.windowDocVisibilitychange_(e); }
-function windowKeyDown(e) { hcl.windowKeyDown_(e); }
-function windowKeyPress(e) { hcl.windowKeyPress_(e); }
-function windowKeyUp(e) { hcl.windowKeyUp_(e); }
-function windowResize(e) { hcl.windowResize_(e); }
-function windowFocus(e) { hcl.windowFocus_(e); }
-
-export var hcl = new THCL();
+let hclIinstance = new THCL();
+export { hclIinstance as hcl }
+//export let hcl = new THCL();

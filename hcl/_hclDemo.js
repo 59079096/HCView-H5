@@ -1,18 +1,16 @@
-import { application } from "./Application.js";
+import { hcl, THCL } from "./HCL.js";
 import { TAlign, TKey, TProgressBar, TTrackBar } from "./Controls.js";
 import { TTimer } from "./ExtCtrls.js";
 import { TForm, TOpenDialog } from "./Forms.js";
-import { hcl } from "./HCL.js";
-import { TButton, TButtonEdit, TCheckBox, TColorCombobox, TCombobox, TEdit, TGrid, TImage, TImageButton, TLable, TLableEdit, TListBox, TPageControl, TPanel, TPopupMenu, TToolBar, TToolMenuButton, TTreeView, TUrlLable } from "./StdCtrls.js";
+import { TButton, TButtonEdit, TCheckBox, TColorCombobox, TCombobox, TEdit, TGrid, TImage, TImageButton, TLable, TLableEdit, TListBox, TPageControl, TPanel, TPopupMenu, TToolBar, TToolMenuButton, TTreeView, TUrlLable, TMemo } from "./StdCtrls.js";
 import { TFileType } from "./System.js";
-import { theme } from "./theme.js";
 
 export class TFrmDemo extends TForm {
     constructor(width, height) {
         super(width, height);
         this.captionBar.captureParent = false;
         this.captionBar.controls.clear();
-        this.captionBar.addButton("", false, application.icon.src).onClick = function() { hcl.showMessage("欢迎使用HCView！"); }
+        this.captionBar.addButton("", false, hcl.application.icon.src).onClick = function() { hcl.showMessage("欢迎使用HCL，它是一个UI框架！"); }
 
         let menuFile = new TPopupMenu();
         menuFile.dropDownStyle = true;
@@ -59,9 +57,9 @@ export class TFrmDemo extends TForm {
         this.cbbFontColor = new TColorCombobox();
         this.cbbFontColor.hint = "改变主题颜色";
         this.cbbFontColor.align = TAlign.Left;
-        this.cbbFontColor.color = theme.backgroundStaticColor;
+        this.cbbFontColor.color = hcl.theme.backgroundStaticColor;
         this.cbbFontColor.onSelectedIndexChange = () => {
-            theme.backgroundStaticColor = this.cbbFontColor.color;
+            hcl.theme.backgroundStaticColor = this.cbbFontColor.color;
             hcl.update();
         }
         this.captionBar.addControl(this.cbbFontColor);
@@ -151,7 +149,7 @@ export class TFrmDemo extends TForm {
         this.addControl(trackBar);
 
         let grid = new TGrid(25, 4);
-        grid.hint = "我是一个Grid，但现在还没有编辑单元格的能力^_^||";
+        grid.hint = "我是一个Grid，双击编辑单元格的内容";
         grid.fixRowCount = 1;
         grid.setColWidth(0, 30);
         grid.setColWidth(1, 60);
@@ -182,7 +180,7 @@ export class TFrmDemo extends TForm {
         this.addControl(chkBox);
 
         let edit = new TEdit();
-        edit.textPrompt = "没内容时我就提示你";
+        edit.textPrompt = "没内容时的提示信息";
         edit.left = chkBox.right + 20;
         edit.top = chkBox.top;
         edit.width_ = 150;
@@ -269,14 +267,21 @@ export class TFrmDemo extends TForm {
         urllable.align = TAlign.Left;
         statebar.addControl(urllable);
         this.addControl(statebar);
+
+        let memo = new TMemo("这是一个Memo控件，它会自动的显示多行内容，但是换行处没有两端对齐的功能！它可以支持纵向滚动条");
+        memo.left = pageControl.left;
+        memo.top = pageControl.bottom + 10;
+        memo.hscrollBar.visible = false;
+        this.addControl(memo);
     }
 }
 
-application.icon.src = "../image/hcview.png";
+THCL.createInstance();
+hcl.application.icon.src = "../image/hcview.png";
 let mainForm = new TFrmDemo(hcl.width, hcl.height);
-application.addForm(mainForm);
+hcl.application.addForm(mainForm);
 hcl.homePath = "./";
 hcl.autoWidth = true;
-application.run();
+hcl.application.run();
 
 // hcl.design = true;

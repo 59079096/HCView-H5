@@ -7,15 +7,14 @@
 
 =======================================================*/
 
-import { application } from "./Application.js";
 import { TColor, THCCanvas } from "./Graphics.js";
 import { TList, TObject, TPoint, TRect } from "./System.js";
-import { theme } from "./theme.js";
+import { hcl } from "./HCL.js";
 
 /**
  * HCL枚举：对齐方式
  */
-export var TAlign = {
+export let TAlign = {
     None: 0,    // 无对齐
     Left: 1,    // 左对齐
     Top: 2,     // 顶对齐
@@ -24,29 +23,29 @@ export var TAlign = {
     Client: 5   // 充满客户区
 }
 
-export var TOrientation = {
+export let TOrientation = {
     Horizontal: 0, 
     Vertical: 1
 }
 
-export var TMouseStates = {
+export let TMouseStates = {
     MouseIn: 1,
     MouseDown: 2
 }
 
-export var TShiftState = {
+export let TShiftState = {
     Shift: 1,
     Alt: 2,
     Ctrl: 3
 }
 
-export var TMouseButton = {
+export let TMouseButton = {
     Left: 1,
     Right: 2,
     Middle: 3
 }
 
-export var TCursors = {
+export let TCursors = {
     Default: 0,
     Arrow: 1,
     Cross: 2,
@@ -65,19 +64,19 @@ export var TCursors = {
     VertSplit: 15
 }
 
-export var THorizontalAlign = {
+export let THorizontalAlign = {
     Left: 0,
     Right: 1,
     Center: 2
 }
 
-export var TVerticalAlign = {
+export let TVerticalAlign = {
     Top: 0,
     Bottom: 1, 
     Center: 2
 }
 
-export var TKey = {
+export let TKey = {
     None: 0,
     LButton: 1,
     RButton: 2,
@@ -272,7 +271,7 @@ export var TKey = {
     OemClear: 254
 }
 
-export var TMessage = {
+export let TMessage = {
     Design: 10,
     Broadcast: 1001,
     Deactivate: 1002
@@ -326,7 +325,7 @@ export class TCaret {
 
 export class TMouseEventArgs {
     constructor() {
-        this.shift = new Set([]);
+        this.shiftState = new Set([]);
         this.button = 0;
         this.x = 0;
         this.y = 0;
@@ -335,7 +334,7 @@ export class TMouseEventArgs {
     }
 
     assign(src) {
-        this.shift = src.shift;
+        this.shiftState = src.shiftState;
         this.button = src.button;
         this.x = src.x;
         this.y = src.y;
@@ -346,7 +345,7 @@ export class TMouseEventArgs {
 
 export class TKeyEventArgs {
     constructor() {
-        this.shift = new Set([]);
+        this.shiftState = new Set([]);
         /** 键名 */
         this.key = "";
         /** 键码 */
@@ -354,7 +353,7 @@ export class TKeyEventArgs {
     }
 
     assign(src) {
-        this.shift = new Set([...src.shift]);
+        this.shiftState = new Set([...src.shiftState]);
         this.key = src.key;
         this.keyCode = src.keyCode;
     }
@@ -404,7 +403,7 @@ export class TControl extends TComponent {
     }
 
     hclSelect() {
-        application.hclSelectControl(this);
+        hcl.application.hclSelectControl(this);
     }
 
     _paintexec(hclCanvas) {
@@ -497,6 +496,9 @@ export class TControl extends TComponent {
     }
 
     doEnableChange_(val) {
+        if (!val)
+            this.doMouseLeave_();
+
         this.update();
     }
 
@@ -555,7 +557,7 @@ export class TControl extends TComponent {
 
     doMouseEnter_() {
         this.mouseStates.add(TMouseStates.MouseIn);
-        application.setCursorBy(this);
+        hcl.application.setCursorBy(this);
         this.onMouseEnter();
     }
 
@@ -1068,7 +1070,7 @@ export class TControl extends TComponent {
     set cursor(val) {
         if (this.cursor_ != val) {
             this.cursor_ = val;
-            application.setCursorBy(this);
+            hcl.application.setCursorBy(this);
         }
     }
 
@@ -1128,9 +1130,9 @@ export class TPopupControl extends TControl {
 
     doPaintBackground_(hclCanvas) {
         let vRect = this.clientRect();
-        theme.drawShadow(hclCanvas, vRect, this.dropDownStyle);
+        hcl.theme.drawShadow(hclCanvas, vRect, this.dropDownStyle);
 
-        hclCanvas.brush.color = theme.backgroundStaticColor;
+        hclCanvas.brush.color = hcl.theme.backgroundStaticColor;
         hclCanvas.fillRect(vRect);    
         super.doPaintBackground_(hclCanvas);
     }
@@ -1140,7 +1142,7 @@ export class TPopupControl extends TControl {
     }
 
     updateRect(rect) {
-        application.updateRect(rect.offset(this.left, this.top, true));
+        hcl.application.updateRect(rect.offset(this.left, this.top, true));
     }
 
     update() {
@@ -1151,7 +1153,7 @@ export class TPopupControl extends TControl {
         this.left = x;
         this.top = y;
         this.visible = true;
-        application.trackPopupControl(this, root);
+        hcl.application.trackPopupControl(this, root);
     }
 
     popupControl(control) {
@@ -1165,24 +1167,24 @@ export class TPopupControl extends TControl {
     }
 
     donePopup() {  // 完成popup链
-        application.closePopupControl(this.popupLinkedList.first);
+        hcl.application.closePopupControl(this.popupLinkedList.first);
         if (this.onDone != null)
             this.onDone();
     }
 
     close() {  // 我关闭后把我的后续popup链关闭(收起时关闭)
-        application.closePopupControl(this);
+        hcl.application.closePopupControl(this);
     }
 }
 
-export var TScrollBarControl = {
+export let TScrollBarControl = {
     Bar: 0,
     LeftBtn: 1,
     Thum: 2,
     RightBtn: 3
 }
 
-export var TScrollBarCode = {
+export let TScrollBarCode = {
     LineUp: 0,
     LineDown: 1,
     PageUp: 2,
@@ -1504,7 +1506,7 @@ export class TScrollBar extends TControl {
     doDrawThumBefor_(hclCanvas, thumRect) { }  // eslint-disable-line
 
     paintToEx(hclCanvas) {
-        hclCanvas.brush.color = theme.backgroundStaticColor;
+        hclCanvas.brush.color = hcl.theme.backgroundStaticColor;
         hclCanvas.fillBounds(0, 0, this.width, this.height);
 
         let vRect = TRect.CreateByRect(this.thumRect_);
@@ -1512,10 +1514,10 @@ export class TScrollBar extends TControl {
         if (this.orientation_ == TOrientation.Horizontal) {
             vRect.inFlate(0, -1);
             this.doDrawThumBefor_(hclCanvas, vRect);
-            hclCanvas.brush.color = theme.backgroundHotColor;
+            hclCanvas.brush.color = hcl.theme.backgroundHotColor;
             hclCanvas.fillRect(vRect);
 
-            hclCanvas.pen.color = theme.borderColor;
+            hclCanvas.pen.color = hcl.theme.borderColor;
             hclCanvas.beginPath();
             hclCanvas.drawLine(vRect.left, vRect.top, vRect.right, vRect.top);
             hclCanvas.drawLine(vRect.right, vRect.top, vRect.right, vRect.bottom);
@@ -1529,7 +1531,7 @@ export class TScrollBar extends TControl {
             hclCanvas.drawLine(vRect.left - 3, 5, vRect.left - 3, this.height - 5);
             hclCanvas.paintPath();
 
-            hclCanvas.pen.color = theme.backgroundHotColor;
+            hclCanvas.pen.color = hcl.theme.backgroundHotColor;
             hclCanvas.beginPath();
             // 左按钮
             vRect.left = this.leftBtnRect_.left + Math.trunc((this.leftBtnRect_.width - 4) / 2) + 4;
@@ -1550,10 +1552,10 @@ export class TScrollBar extends TControl {
             // 滑块
             vRect.inFlate(-1, 0);
             this.doDrawThumBefor_(hclCanvas, vRect);
-            hclCanvas.brush.color = theme.backgroundHotColor;
+            hclCanvas.brush.color = hcl.theme.backgroundHotColor;
             hclCanvas.fillRect(vRect);
 
-            hclCanvas.pen.color = theme.borderColor;
+            hclCanvas.pen.color = hcl.theme.borderColor;
             hclCanvas.beginPath();
             hclCanvas.drawLine(vRect.left, vRect.top, vRect.right, vRect.top);
             hclCanvas.drawLine(vRect.right - 1, vRect.top, vRect.right - 1, vRect.bottom);
@@ -1566,7 +1568,7 @@ export class TScrollBar extends TControl {
             hclCanvas.drawLine(5, vRect.top + 3, this.width - 5, vRect.top + 3);
             hclCanvas.paintPath();
 
-            hclCanvas.pen.color = theme.backgroundHotColor;
+            hclCanvas.pen.color = hcl.theme.backgroundHotColor;
             hclCanvas.beginPath();
             // 上按钮
             vRect.left = this.leftBtnRect_.left + Math.trunc((this.leftBtnRect_.width - 7) / 2);
@@ -1679,9 +1681,9 @@ class TCustomProgress extends TControl {
     }
 
     doPaintBackground_(hclCanvas) {
-        hclCanvas.brush.color = theme.backgroundStaticColor;
+        hclCanvas.brush.color = hcl.theme.backgroundStaticColor;
         hclCanvas.fillBounds(0, 0, this.width, this.height);
-        hclCanvas.brush.color = theme.backgroundDownColor;
+        hclCanvas.brush.color = hcl.theme.backgroundDownColor;
         hclCanvas.fillBounds(0, 0,  Math.trunc(this.width * this.precent_), this.height);
     }
 
@@ -1747,7 +1749,7 @@ export class TProgressBar extends TCustomProgress {
 
         if (this.borderVisible_) {
             hclCanvas.pen.width = 1;
-            hclCanvas.pen.color = theme.borderColor;
+            hclCanvas.pen.color = hcl.theme.borderColor;
             hclCanvas.rectangleBounds(0, 0, this.width, this.height);
         }
     }
@@ -1778,8 +1780,8 @@ export class TProgressBar extends TCustomProgress {
 export class TTrackBar extends TCustomProgress {
     constructor() {
         super();
-        this.thumHotRect_ = TRect.CreateByBounds(0, 2, theme.iconSize, this.height - 4);
-        this.thumRect_ = TRect.CreateByBounds(0, 0, theme.iconSize, this.height);
+        this.thumHotRect_ = TRect.CreateByBounds(0, 2, hcl.theme.iconSize, this.height - 4);
+        this.thumRect_ = TRect.CreateByBounds(0, 0, hcl.theme.iconSize, this.height);
         this.trackHeight_ = 5;
         this.downPos_ = 0;
         this.downX_ = 0;
@@ -1789,15 +1791,15 @@ export class TTrackBar extends TCustomProgress {
     doReset() {
         super.doReset();
         let vPos = Math.trunc(this.width * this.precent_);
-        this.thumRect_.resetBounds(vPos - 8, (this.height - this.trackHeight_) / 2, theme.iconSize, this.trackHeight_);
-        this.thumHotRect_.resetBounds(this.thumRect_.left, 2, theme.iconSize, this.height - 4);
+        this.thumRect_.resetBounds(vPos - 8, (this.height - this.trackHeight_) / 2, hcl.theme.iconSize, this.trackHeight_);
+        this.thumHotRect_.resetBounds(this.thumRect_.left, 2, hcl.theme.iconSize, this.height - 4);
     }
 
     doPaintBackground_(hclCanvas) {
-        hclCanvas.brush.color = theme.backgroundDownColor;
+        hclCanvas.brush.color = hcl.theme.backgroundDownColor;
         hclCanvas.fillBounds(0, Math.trunc((this.height - this.trackHeight_) / 2), this.width, this.trackHeight_);
         
-        hclCanvas.brush.color = theme.backgroundSelectColor;
+        hclCanvas.brush.color = hcl.theme.backgroundSelectColor;
         if (this.mouseIn)
             hclCanvas.fillRect(this.thumHotRect_);
         else
@@ -1844,7 +1846,7 @@ export class TTrackBar extends TCustomProgress {
     }
 }
 
-export var TControlState = {
+export let TControlState = {
     Creating: 1,
     Removing: 2,
     Checked: 3,
@@ -1852,7 +1854,7 @@ export var TControlState = {
     VisibleChange: 5
 }
 
-export var TControlStyle = {
+export let TControlStyle = {
     ButtonRadio: 1,
     CheckBox: 2
 }
@@ -1993,6 +1995,10 @@ export class TWinControl extends TControl {
         this.reAlignControl(control);
     }
 
+    insertControl(i, control) {
+        this.controls.insert(i, control);
+    }
+
     addControl(control) {
         this.controls.add(control);
     }
@@ -2045,7 +2051,7 @@ export class TWinControl extends TControl {
         if (this.parent != null)
             this.parent.killFocusControl_(control);
         else
-            application.killFocusControl_(control);
+            hcl.application.killFocusControl_(control);
     }
 
     killFocus() {
@@ -2169,7 +2175,7 @@ export class TWinControl extends TControl {
             this._mouseMoveControl.mouseMove(vMouseArgs);
         }
         else {
-            application.setCursorBy(this);
+            hcl.application.setCursorBy(this);
             super.mouseMove(e);
         }
     }
@@ -2203,21 +2209,21 @@ export class TWinControl extends TControl {
     doKeyDown_(e) {
         if (this._focusControl != null)
             this._focusControl.keyDown(e);
-        else
+        else if (!this.keyPreview)  // 配合form的keyPreview避免不必要的Key事件触发
             super.doKeyDown_(e);
     }
 
     doKeyPress_(e) {
         if (this._focusControl != null)
             this._focusControl.keyPress(e);
-        else
+        else if (!this.keyPreview)  // 配合form的keyPreview避免不必要的Key事件触发
             super.doKeyPress_(e);
     }
 
     doKeyUp_(e) {
         if (this._focusControl != null)
             this._focusControl.keyUp(e);
-        else
+        else if (!this.keyPreview)  // 配合form的keyPreview避免不必要的Key事件触发
             super.doKeyUp_(e);
     }
 
@@ -2228,7 +2234,7 @@ export class TWinControl extends TControl {
             if (this.color != null)
                 hclCanvas.brush.color = this.color;
             else
-                hclCanvas.brush.color = theme.backgroundStaticColor;
+                hclCanvas.brush.color = hcl.theme.backgroundStaticColor;
                 
             hclCanvas.fillBounds(0, 0, this.width, this.height);
         }
@@ -2248,7 +2254,7 @@ export class TWinControl extends TControl {
                 // to do 处理旋转的区域
                 hclCanvas.translate(vControl.left, vControl.top);
                 if (vControl.drawShadow)  // 为实现emr数据元弹出窗体阴影临时加的
-                    theme.drawShadow(hclCanvas, TRect.CreateByBounds(0, 0, vControl.width, vControl.height), true);
+                    hcl.theme.drawShadow(hclCanvas, TRect.CreateByBounds(0, 0, vControl.width, vControl.height), true);
                 
                 hclCanvas.clip(0, 0, vControl.width, vControl.height);
                 vControl.paint(hclCanvas);
@@ -2293,25 +2299,25 @@ export class TPopupWinControl extends TCustomControl {
     }
 
     _doPaintShadow(hclCanvas, rect) {
-        hclCanvas.brush.color = theme.backgroundStaticColor;
-        hclCanvas.fillRectShadow(rect, theme.shadow);
+        hclCanvas.brush.color = hcl.theme.backgroundStaticColor;
+        hclCanvas.fillRectShadow(rect, hcl.theme.shadow);
     }
 
     doPaintBackground_(hclCanvas) {
         let vRect = this.clientRect();
-        theme.drawShadow(hclCanvas, vRect, this.dropDownStyle);
+        hcl.theme.drawShadow(hclCanvas, vRect, this.dropDownStyle);
         super.doPaintBackground_(hclCanvas);
     }
 
     updateRect(rect) {
-        application.updateRect(rect.offset(this.left, this.top, true));
+        hcl.application.updateRect(rect.offset(this.left, this.top, true));
     }
 
     popup(x, y, root) {
         this.left = x;
         this.top = y;
         this.visible = true;
-        application.trackPopupControl(this, root);
+        hcl.application.trackPopupControl(this, root);
     }
 
     popupControl(control) {
@@ -2320,7 +2326,7 @@ export class TPopupWinControl extends TCustomControl {
     }
 
     donePopup() {  // 完成popup链
-        application.closePopupControl(this.popupLinkedList.first);
+        hcl.application.closePopupControl(this.popupLinkedList.first);
         if (this.onDone != null)
             this.onDone();
     }
@@ -2332,7 +2338,7 @@ export class TPopupWinControl extends TCustomControl {
     }
 
     close() {  // 我关闭后把我的后续popup链关闭
-        application.closePopupControl(this);
+        hcl.application.closePopupControl(this);
     }
 
     // _controlUpdate(rect) {

@@ -7,13 +7,13 @@
 
 =======================================================*/
 
-export var TCharSet = {
+export let TCharSet = {
     Ansi: 0,
     Unicode: 1,
     GBK2312: 2
 }
 
-export var TEncode = {
+export let TEncode = {
     Asni: 0,
     Utf8: 1,
     Utf16: 2
@@ -31,15 +31,20 @@ TFileType.JPEG = "image/jpeg";
 TFileType.IMAGE = TFileType.PNG + "," + TFileType.JPEG + "," + TFileType.BMP;
 TFileType.PDF = "application/pdf";
 
+export let TFileExt = {
+    Text: ".text"
+}
+
 /**
- * HCL类：系统类(已实例化为system，无需重复实例化)
+ * 系统类
  */
-class TSystem {
+export class TSystem {
     constructor() {
-        this.lineBreak = "\r\n";    
+        this.lineBreak = "\r\n";
+        this._dpi = null;
     }
 
-    getDPI() {
+    _getDPI() {
         let vDPI = {};
         if (window.screen.deviceXDPI != undefined ) {
             vDPI.x = window.screen.deviceXDPI;
@@ -56,28 +61,27 @@ class TSystem {
         return vDPI;
     }
 
+    openURL(url) {
+        window.open(url);
+    }
+
+
     isOdd(n) {
         return (n & 1) == 1 ? true : false;
     }
 
     tryParseInt(val) {
-        let vI = 0;
+        let vI = NaN;
         let vResult = false;
-        try {
+        if (this.isNumber(val)) {
             vI = parseInt(val);
             vResult = true;
-        } catch (e) {
-            vResult = false;
         }
         
         return {
             value: vI,
             ok: vResult
         }
-   }
-
-    openURL(url) {
-        window.open(url);
     }
 
     /**
@@ -109,20 +113,22 @@ class TSystem {
             return vR;
     }
 
+    parseBooleanDef(s, def) {
+        let vR = parseInt(s);
+        if (isNaN(vR))
+            return def;
+        else if (vR == 1)
+            return true;
+        else
+            return false;
+    }
+
     assigned(obj) {
         //return obj != null;
         return typeof(obj) != "undefined";
     }
 
     beep() { }
-
-    exception(msg) {
-        throw "HCL异常:" + msg;
-    }
-
-    log(msg) {
-        console.log(msg);
-    }
 
     getUrlParam(param) {
        let vQuery = window.location.search.substring(1);
@@ -135,12 +141,19 @@ class TSystem {
 
        return "";
     }
-}
 
-/**
- * HCL实例：系统类的实例
- */
-export let system = new TSystem();
+    /** 时间戳 */
+    get Timestamp() {
+        return new Date().getTime();
+    }
+
+    get dpi() {
+        if (!this._dpi)
+            this._dpi = this._getDPI();
+
+        return this._dpi;
+    }
+}
 
 export class TObjectArray extends Array {
     constructor(len) {
@@ -195,7 +208,19 @@ export class TBytes extends Array {
     }
 
     toText() {
-        return String.fromCharCode.apply(null, new Uint16Array(this));
+        //return new TextDecoder().decode(new Uint8Array(this));
+        /*let vChunk = 8 * 1024, i, vLen, vS = "";
+        for (i = 0, vLen = this.length / vChunk; i < vLen; i ++)
+            vS += String.fromCharCode.apply(null, this.slice(i * vChunk, (i + 1) * vChunk));
+
+        return vS + String.fromCharCode.apply(null, this.slice(i * vChunk));*/
+        //return String.fromCharCode.apply(null, new Uint16Array(this));
+
+        let vS = "";
+        for (let i = 0, vLen = this.length; i < vLen; i++)
+            vS += String.fromCharCode(this[i]);
+
+        return vS;
     }
 
     toBase64() {
@@ -207,16 +232,16 @@ export class TBytes extends Array {
 class TEncoding {
     constructor(){
         if (this.constructor.prototype === TEncoding.prototype)
-            system.exception("TEncoding类为抽象类，不可直接实例使用！");
+            throw "TEncoding类为抽象类，不可直接实例使用！";
 
         if (typeof this.getByteCount !== "function")
-            system.exception(this.prototype + " 没有实现getByteCount方法！");
+            throw this.prototype + " 没有实现getByteCount方法！";
 
         if (typeof this.getBytes !== "function")
-            system.exception(this.prototype + " 没有实现getBytes方法！");
+            throw this.prototype + " 没有实现getBytes方法！";
 
         if (typeof this.getString !== "function")
-            system.exception(this.prototype + " 没有实现getString方法！");
+            throw this.prototype + " 没有实现getString方法！";
     }
 }
 
@@ -371,7 +396,7 @@ export class TUtf16Encoding extends TEncoding {
 export class TInt8 {
     constructor(val = 0) {
         if (val < -128 || val > 127)
-            system.exception(String.format("值 {0} 不在 -128..127内！", val));
+            throw String.format("值 {0} 不在 -128..127内！", val);
 
         this._val = new Int8Array(1);
         this._val[0] = val;
@@ -416,7 +441,7 @@ export class TInt8 {
 export class TUInt8 {
     constructor(val = 0) {
         if (val < 0 || val > 255)
-            system.exception(String.format("值 {0} 不在 0..255内！", val));
+            throw String.format("值 {0} 不在 0..255内！", val);
 
         this._val = new Uint8Array(1);
         this._val[0] = val;
@@ -466,7 +491,7 @@ export class TByte extends TUInt8 { constructor(val = 0) {super(val)} }
 export class TInt16 {
     constructor(val = 0) {
         if (val < -32768 || val > 32767)
-            system.exception(String.format("值 {0} 不在 -32768..32767内！", val));
+            throw String.format("值 {0} 不在 -32768..32767内！", val);
 
         this._val = new Int16Array(1);
         this._val[0] = val;
@@ -523,7 +548,7 @@ export class TInt16 {
 export class TUInt16 {
     constructor(val = 0) {
         if (val < 0 || val > 65536)
-            system.exception(String.format("值 {0} 不在 0..65535内！", val));
+            throw String.format("值 {0} 不在 0..65535内！", val);
 
         this._val = new Uint16Array(1);
         this._val[0] = val;
@@ -580,7 +605,7 @@ export class TUInt16 {
 export class TInt32 {
     constructor(val = 0) {
         if (val < -2147483648 || val > 2147483647)
-            system.exception(String.format("值 {0} 不在 -2147483648..2147483647内！", val));
+            throw String.format("值 {0} 不在 -2147483648..2147483647内！", val);
 
         this._val = new Int32Array(1);
         this._val[0] = val;
@@ -649,7 +674,7 @@ export class TInt32 {
 export class TUInt32 {
     constructor(val = 0) {
         if (val < 0 || val > 4294967295)
-            system.exception(String.format("值 {0} 不在 0..4294967295内！", val));
+            throw String.format("值 {0} 不在 0..4294967295内！", val);
 
         this._val = new Uint32Array(1);
         this._val[0] = val;
@@ -722,7 +747,7 @@ export class TSingle {
 export class TUInt64 {
     constructor(val = 0) {
         if (val < Number.MIN_SAFE_INTEGER || val > Number.MAX_SAFE_INTEGER)
-            system.exception(String.format("值 {0} 不在 {1}..{2}内！", val, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER));
+            throw String.format("值 {0} 不在 {1}..{2}内！", val, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
 
         if (val > TUInt32.max) {
             let vsBin = val.toString(2);
@@ -794,7 +819,7 @@ export class TEnumSet {
 }
 
 /**
- * HCL类：HCL基类
+ * 对象基类
  */
 export class TObject {
     constructor() {
@@ -807,7 +832,9 @@ export class TObject {
     dispose() { }
 
     isClass(cls) {
-        return this instanceof cls;
+        return this instanceof cls;  // 原型链是针对this.prototype进行检查的，而不是针对this本身
+        //return Object.prototype.isPrototypeOf.call(cls, this);
+        //return cls.prototype.isPrototypeOf(this);
     }
 
     isSubClass(cls) {
@@ -830,7 +857,7 @@ export class TObject {
 }
 
 /**
- * HCL类：点，包含x、y
+ * 类：点，包含x、y
  */
 export class TPoint {
     constructor() {
@@ -872,7 +899,7 @@ export class TPoint {
 }
 
 /**
- * HCL类：尺寸，包含width、height
+ * 类：尺寸，包含width、height
  */
 export class TSize {
     constructor() {
@@ -887,7 +914,7 @@ export class TSize {
 }
 
 /**
- * HCL类：矩形区域
+ * 类：矩形区域
  */
 export class TRect {
     constructor() {
@@ -911,7 +938,7 @@ export class TRect {
     }
 
     static CreateByBounds(left, top, width, height) {
-        var rect = new TRect();
+        let rect = new TRect();
         rect.left = left;
         rect.top = top;
         rect.right = left + width;
@@ -1080,7 +1107,7 @@ export class TRect {
 }
 
 /**
- * HCL类：列表
+ * 类：列表
  */
 export class TList extends Array {
     constructor(ownsObjects = true) {
@@ -1221,7 +1248,7 @@ export class TList extends Array {
 }
 
 /**
- * HCL类：栈
+ * 类：栈
  */
 export class TStack extends Array {
     constructor() {
@@ -1242,7 +1269,7 @@ export class TStack extends Array {
 }
 
 /**
- * HCL类：队列
+ * 类：队列
  */
 export class TQueue extends Array {
     constructor() {
@@ -1382,6 +1409,12 @@ export class TDateTime {
         return fmt;   
     }
 
+    fromString(str) {
+        str = str.replace(/-/g, "/").replace(/年/g, "/").replace(/月/g, "/").replace(/日/g, "/");
+        str = str.replace(/时/g, ":").replace(/分/g, ":").replace(/秒/g, "");
+        this._datetime = new Date(Date.parse(str));
+    }
+
     toString() {
         return this.format("yyyy-MM-dd hh:mm:ss");
     }
@@ -1476,6 +1509,12 @@ export class TDateTime {
         vDateTime.minute = dateTime.minute;
         vDateTime.second = dateTime.second;
         vDateTime.millisecond = dateTime.millisecond;
+        return vDateTime;
+    }
+
+    static CreateByString(str) {
+        let vDateTime = new TDateTime();
+        vDateTime.fromString(str);
         return vDateTime;
     }
 

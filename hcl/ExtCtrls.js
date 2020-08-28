@@ -8,7 +8,8 @@
 =======================================================*/
 
 import { TComponent } from "./Controls.js";
-import { TObject, TRect, system } from "./System.js";
+import { TObject, TRect } from "./System.js";
+import { hcl } from "./HCL.js";
 
 export class TTimer extends TComponent {
     constructor(interval = 1000) {
@@ -286,7 +287,7 @@ export class THintInfo extends TObject {
 
 let AudioContext = window.AudioContext || window.webkitAudioContext;
 
-export var TPlayState = {
+export let TPlayState = {
     Stop: 0,
     Pause:1,
     Play: 2,
@@ -349,7 +350,7 @@ export class TAudio extends TObject {
                 if (!buffer) {
                     this._setState(TPlayState.Loaded);
                     this.stop();
-                    system.exception("解码音频数据时发生错误！");
+                    hcl.exception("解码音频数据时发生错误！");
                 }
                 else {
                     this.doLoaded(buffer);
@@ -469,7 +470,7 @@ export class TVideo extends TObject {
     }
 }
 
-export var TWebSocketState = {
+export let TWebSocketState = {
     Closed: 0,
     Closing: 1,
     Open: 2,
@@ -586,7 +587,7 @@ export class THttp extends TObject {
             if(vXmlhttp.readyState == 4 && vXmlhttp.status == 200 && callBack != null)
                 callBack(vXmlhttp.responseText);
             // else
-            //     system.exception("http请求失败！");
+            //     hcl.exception("http请求失败！");
         }
 
         vXmlhttp.onloadend = function(e) {  // 请求完成

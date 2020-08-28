@@ -7,9 +7,10 @@
 
 =======================================================*/
 
-import { system, TEnumSet, TList, TPoint } from "./System.js";
+import { TEnumSet, TList, TPoint } from "./System.js";
+import { hcl } from "./HCL.js";
 
-export var TClipType = {
+export let TClipType = {
     None: 0,
     Intersection: 1,
     Union: 2,
@@ -17,19 +18,19 @@ export var TClipType = {
     Xor: 4
 }
 
-var TPathType = {
+let TPathType = {
     Subject: 0, 
     Clip: 1
 }
 
-var TFillRule = {
+let TFillRule = {
     EvenOdd: 0, 
     NonZero: 1,
     Positive: 2,
     Negative: 3
 }
 
-var TVertexFlag = {
+let TVertexFlag = {
     OpenStart: 1, 
     OpenEnd: 1 << 1, 
     LocMax: 1 << 2, 
@@ -195,7 +196,7 @@ export class TRegion extends TList {
     _addPath(pointArray, pathType = TPathType.Subject, isOpen = false) {
         if (isOpen) {
             if (pathType == TPathType.Clip)
-                system.exception("只有主路径才能处于Open状态");
+                hcl.exception("只有主路径才能处于Open状态");
 
             this.FHasOpenPaths = true;
         }

@@ -7,8 +7,8 @@
 
 =======================================================*/
 
-import { TSize, TPoint, system, TRect, TStack } from "./System.js";
-import { theme } from "./theme.js";
+import { TSize, TPoint, TRect, TStack } from "./System.js";
+import { hcl } from "./HCL.js";
 
 export class TColor {
     static colorToRGBA(color) {
@@ -155,6 +155,15 @@ export class TColor {
 
         return contextTemp.getImageData(0, 0, vWidth, vWidth);
     }
+
+    /**
+     * 判断2个颜色是否相同
+     */
+    static sameColor(c1, c2) {
+        let v1 = this.colorToRGBA(c1);
+        let v2 = this.colorToRGBA(c2);
+        return (v1.r == v2.r) && (v1.g == v2.g) && (v1.b == v2.b) && (v1.a == v2.a);
+    }
 }
 
 TColor.Red = "rgb(255, 0, 0)";
@@ -196,7 +205,7 @@ class TGraphicObj {
     } 
 }
 
-export var TFontStyle = {
+export let TFontStyle = {
     Bold: 1,
     Italic: 2,
     Underline: 4,
@@ -288,6 +297,19 @@ class TFontStyles {
             this._value = val;
             this.doChange_();
         }
+    }
+}
+
+class TFontInfo {
+    constructor() {
+        this.name = "宋体";
+        this.size = 10;
+        this.measured = false;
+        this.height = 13;
+        this.ascent = 11;
+        this.advCharWidth = 7;
+        this.color = TColor.Black;
+        this.stylesv = 0;
     }
 }
 
@@ -548,7 +570,7 @@ export class TFont extends TGraphicObj {
             return;
 
         let vSpan = document.createElement("span");
-        vSpan.style.font = this.contextFont();
+        vSpan.style.font = this.contextFont_();
         vSpan.innerText = "M";
         let vBlock = document.createElement("div");
         vBlock.style.display = "inline-block";
@@ -591,27 +613,57 @@ export class TFont extends TGraphicObj {
         this.doChange_();
     }
 
+    saveInfo(f) {
+        f.name = this._name;
+        f.size = this._size;
+        f.measured = this._measured;
+        f.height = this._height;
+        f.ascent = this._ascent;
+        f.advCharWidth = this._advCharWidth;
+        f.color = this._color;
+        f.stylesv = this._styles.value;
+    }
+
+    restoreInfo(f) {
+        this._name = f.name;
+        this._size = f.size;
+        this._measured = f.measured;
+        this._height = f.height;
+        this._ascent = f.ascent;
+        this._advCharWidth = f.advCharWidth;
+        this._color = f.color;
+        this._styles.value = f.stylesv;
+        this.doChange_();
+    }
+
     // fromContext(context) {
-    //     let ft = context.font.substr(0, context.font.indexOf(' '));
-    //     this._sizeUnit = "pt"; // ft.substr(ft.length - 2);
-    //     this.size = 10;  // ft.substr(0, ft.length - 2);
-    //     this.name = context.font.substr(context.font.indexOf(' ') + 1);
-    //     this.color = context.fillStyle;
+    //     // 无法处理下划线，上下标样式
+    //     let vM = context.font.substr(0, context.font.indexOf(' '));
+    //     if (vM == "italic")
+    //         this._styles.add(TFontStyle.Italic);
+
+    //     if (vM == "bold")
+    //         this._styles.add(TFontStyle.Bold);
+    //     //this._sizeUnit = "pt"; // ft.substr(ft.length - 2);
+    //     this._size = 10;  // ft.substr(0, ft.length - 2);
+    //     this._name = context.font.substr(context.font.indexOf(' ') + 1);
+    //     this._color = context.fillStyle;
+    //     this.doChange_();
     // }
 
     toContext(context) {
-        context.font = this.contextFont();
+        context.font = this.contextFont_();
         if (this._color != null)
             context.fillStyle = this._color;
         else
-            context.fillStyle = theme.textColor;
+            context.fillStyle = TColor.Black;
     }
 
-    contextFont() {
+    contextFont_() {
         return (this._styles.has(TFontStyle.Italic) ? "italic " : "")
             + (this._styles.has(TFontStyle.Bold) ? "bold " : "")
             //+ (this._measured ? this._height + "px " : this._size + "pt ") + this._name;
-            + this._size + "pt " + this._name;
+            + this._size + "pt \"" + this._name + "\"";
     }
 
     static fontSizeToPt(fontSize) {
@@ -631,8 +683,8 @@ export class TFont extends TGraphicObj {
         else if (fontSize == "小六") return 6.5;
         else if (fontSize == "七号") return 5.5;
         else if (fontSize == "八号") return 5;
-        else if (system.isNumber(fontSize)) return fontSize;
-        else system.exception("无法识别的字号：" + fontSize);
+        else if (hcl.system.isNumber(fontSize)) return fontSize;
+        else hcl.exception("无法识别的字号：" + fontSize);
     }
 
     static fontPtToSize(pt) {
@@ -654,6 +706,43 @@ export class TFont extends TGraphicObj {
         else if (pt == 5) return "八号"
         else
             return pt.toString();
+    }
+
+    static fontPixToPt(px) {
+        if (px == 56) return 42
+        else if (px == 48) return 36;
+        else if (px == 45) return 34;
+        else if (px == 42) return 32;
+        else if (px == 40) return 30;
+        else if (px == 38) return 29;
+        else if (px == 37) return 28;
+        else if (px == 36) return 27;
+        else if (px == 35) return 26;
+        else if (px == 34) return 25;
+        else if (px == 32) return 24;
+        else if (px == 29) return 22;
+        else if (px == 26) return 20;
+        else if (px == 24) return 18;
+        else if (px == 23) return 17;
+        else if (px == 22) return 16;
+        else if (px == 21) return 15;
+        else if (px == 20) return 14.5;
+        else if (px == 19) return 14;
+        else if (px == 18) return 13.5
+        else if (px == 17) return 13;
+        else if (px == 16) return 12;
+        else if (px == 15) return 11;
+        else if (px == 14) return 10.5;
+        else if (px == 13) return 10;
+        else if (px == 12) return 9;
+        else if (px == 11) return 8;
+        else if (px == 10) return 7.5;
+        else if (px == 9) return 7;
+        else if (px == 8) return 6.5;
+        else if (px == 7) return 5.5;
+        else if (px == 6) return 5;
+        else
+            return Math.round(px / hcl.system.dpi * 72).toString();
     }
 
     static hasFont(fontName) {
@@ -759,22 +848,22 @@ export class TFont extends TGraphicObj {
     }
 }
 
-export var TCapStyle = {
+export let TCapStyle = {
     Square:0,
     Butt: 1,
     Round: 2
 }
 
-export var TPenStyle = {
-    Solid: 1,
-    Dash: 2,
-    Dot: 3,
-    DashDot: 4,
-    DashDotDot: 5,
-    Clear: 6,
-    InsideFrame: 7,
-    UserStyle: 8,
-    Alternate: 9
+export let TPenStyle = {
+    Solid: 0,
+    Dash: 1,
+    Dot: 2,
+    DashDot: 3,
+    DashDotDot: 4,
+    Clear: 5,
+    InsideFrame: 6,
+    UserStyle: 7,
+    Alternate: 8
 }
 
 class TPen extends TGraphicObj {
@@ -796,7 +885,7 @@ class TPen extends TGraphicObj {
     }
 
     fromContext(context) {
-        this.width = context.lineWidth;
+        this._width = context.lineWidth;
         switch (context.lineCap) {
             case "butt":
                 this._capType = TCapStyle.Butt;
@@ -811,13 +900,14 @@ class TPen extends TGraphicObj {
                 break;
         }
 
-        let vArr = context.getLineDash();
-        if (vArr.length > 0)
+        //let vArr = context.getLineDash();
+        if (context.getLineDash().length > 0)
             this._style = TPenStyle.Dash;
         else
             this._style = TPenStyle.Solid;
 
-        this.color = context.strokeStyle;
+        this._color = context.strokeStyle;
+        this.doChange_();
     }
 
     toContext(context) {
@@ -896,7 +986,7 @@ class TPen extends TGraphicObj {
     }
 }
 
-export var TBrushStyle = {
+export let TBrushStyle = {
     Solid: 0,
     Clear: 1,
     Gradient: 2
@@ -953,7 +1043,7 @@ class TBrush extends TGraphicObj {
     }
 }
 
-var TCanvasStates = {
+let TCanvasStates = {
     FontValid: 1, 
     PenValid: 2, 
     BrushValid: 3
@@ -970,22 +1060,21 @@ export class THCCanvas {
         this._px2 = -1;
         this._py2 = -1;
         this._pywidth = 0;
-        this._brushColor = null;
-        this._fontColor = null;
+        //this._brushColor = null;
+        //this._fontColor = null;
         this.pen = new TPen();//.Create(h5context);
         this.pen.onChange = () => { this._penChanged(); }
-        this._penStack = new TStack();
+        //this._penStack = new TStack();
         this._fontStack = new TStack();
 
         this.gradientBrush = null;
         this.brush = new TBrush();//.Create(h5context);
         this.brush.onChange = () => { this._brushChanged(); }
-        this.brush.onColorChange = () => { this._brushColor = this.brush.color; }
+        this.brush.onColorChange = () => { this._fontChanged(); }
 
         this.font = new TFont();
         this.font.onChange = () => { this._fontChanged(); }
-
-        this.font.onColorChange = () => { this._fontColor = this.font.color; }
+        this.font.onColorChange = () => { this._brushChanged(); }
 
         this.scaleSize = TPoint.Create(1, 1);
         this.prepareConext(1);
@@ -1006,9 +1095,8 @@ export class THCCanvas {
     _requiredState(req) {
         let need = req.difference(this._states);
         if (need.size > 0) {
-            if (need.has(TCanvasStates.PenValid)) {
+            if (need.has(TCanvasStates.PenValid))
                 this.pen.toContext(this.h5context);
-            }
 
             if (need.has(TCanvasStates.BrushValid)) {
                 this.brush.toContext(this.h5context);
@@ -1016,21 +1104,20 @@ export class THCCanvas {
                     this.h5context.fillStyle = this.gradientBrush;
             }
 
-            if (need.has(TCanvasStates.FontValid)) {
+            if (need.has(TCanvasStates.FontValid))
                 this.font.toContext(this.h5context);
-            }
 
             this._states = this._states.union(need);
         } else {
-            if (req.has(TCanvasStates.BrushValid) && (this._brushColor != this._fontColor)) {
+            if (req.has(TCanvasStates.BrushValid)) {  // && (this._brushColor != this._fontColor)) {
                 this.brush.toContext(this.h5context);
                 if (this.brush.style == TBrushStyle.Gradient)
                     this.h5context.fillStyle = this.gradientBrush;
                     
                 this._states = this._states.union([TCanvasStates.BrushValid]);
             }
-            
-            if (req.has(TCanvasStates.FontValid) && (this._brushColor != this._fontColor)) {
+
+            if (req.has(TCanvasStates.FontValid)) {  // && (this._brushColor != this._fontColor)) {
                 this.font.toContext(this.h5context);
                 this._states = this._states.union([TCanvasStates.FontValid]);
             }
@@ -1131,21 +1218,31 @@ export class THCCanvas {
 
     save() {
         this.h5context.save();
-        let vPen = new TPen();
-        vPen.assign(this.pen);
-        this._penStack.push(vPen);
-        let vFont = new TFont();
-        vFont.assign(this.font);
-        this._fontStack.push(vFont);
+        // 因为字体信息中的样式，和字号，字名不方便从h5context中反推，所以只在记录，影响效率
+        let vFontInfo = new TFontInfo();
+        this.font.saveInfo(vFontInfo);
+        this._fontStack.push(vFontInfo);
+        // 下面的耗资源
+        // let vPen = new TPen();
+        // vPen.assign(this.pen);
+        // this._penStack.push(vPen);
+        // let vFont = new TFont();
+        // vFont.assign(this.font);
+        // this._fontStack.push(vFont);
     }
 
     restore() {
         this.h5context.restore();
-        let vPen = this._penStack.pop();
-        this.pen.assign(vPen);
-        let vFont = this._fontStack.pop();
-        this.font.assign(vFont);
-        this._states.clear();
+        this.pen.fromContext(this.h5context);
+        this.brush.fromContext(this.h5context);
+        
+        this.font.restoreInfo(this._fontStack.pop());
+        // 下面的耗资源
+        // let vPen = this._penStack.pop();
+        // this.pen.assign(vPen);
+        // let vFont = this._fontStack.pop();
+        // this.font.assign(vFont);
+        // this._states.clear();
     }
 
     translate(x, y) {
@@ -1221,6 +1318,50 @@ export class THCCanvas {
         this.h5context.stroke();
     }
 
+    getTextRect(text, rect) {
+        if (text == "" || rect.width == 0)
+            return;
+
+        let vArr = this.getTextExtentExPoint(text);
+        let vLen = vArr.length, vRight = rect.width, vH = 0, i = 0;
+        while (i < vLen) {
+            if (vArr[i] > vRight) {
+                vH += this.font.height + this.font.ascent;
+                if (i > 0)
+                    vRight = vArr[i - 1] + rect.width;
+
+                continue;
+            }
+
+            i++;
+        }
+
+        rect.height = vH + this.font.height + this.font.ascent;
+    }
+
+    textOutRect(text, rect) {
+        if (text == "" || rect.width == 0)
+            return;
+
+        let vArr = this.getTextExtentExPoint(text);
+        let vLen = vArr.length, vRight = rect.width, vTop = rect.top, i = 0, j = 0;
+        while (i < vLen) {
+            if (vArr[i] > vRight) {
+                this.textOut(rect.left, vTop, text.substr(j, i - j));
+                vTop += this.font.height + this.font.ascent;
+                j = i;
+                if (i > 0)
+                    vRight = vArr[i - 1] + rect.width;
+
+                continue;
+            }
+
+            i++;
+        }
+
+        this.textOut(rect.left, vTop, text.substr(j, i - j + 1));
+    }
+
     textOut(x, y, text) {
         this._requiredState(new Set([TCanvasStates.FontValid]));  // Bold、Italic
         if (this.font.styles.has(TFontStyle.SuperScript)) {
@@ -1239,6 +1380,7 @@ export class THCCanvas {
             vW = this.h5context.measureText(text).width;
             this.pen.color = this.font.color;
             this.pen.width = 0.5;
+            this.pen.style = TPenStyle.Solid;
             this.drawLineDriect(x, y + this.font.height, x + vW, y + this.font.height);
         }
 
@@ -1247,6 +1389,7 @@ export class THCCanvas {
                 vW = this.h5context.measureText(text).width;
                 this.pen.color = this.font.color;
                 this.pen.width = 0.5;
+                this.pen.style = TPenStyle.Solid;
             }
 
             let vMid = Math.trunc(this.font.height / 2);

@@ -7,9 +7,9 @@
 
 =======================================================*/
 
-import { TAnsiEncoding, TEncode, TObject, TUtf16Encoding, TUtf8Encoding, TList } from "./System.js";
+import { TAnsiEncoding, TEncode, TObject, TUtf16Encoding, TUtf8Encoding, TList, TStream } from "./System.js";
 
-export var TDataFormat = {
+export let TDataFormat = {
     AnsiText: 1,
     UnicodeText: 2,
     Bitmap: 3,
@@ -20,7 +20,7 @@ export var TDataFormat = {
     Custom: 8
 }
 
-class TClipboard extends TObject {
+export class TClipboard extends TObject {
     constructor() {
         super();
         this._customFormatID = TDataFormat.Custom;
@@ -147,4 +147,48 @@ class TClipboard extends TObject {
     }
 }
 
-export var clipboard = new TClipboard();
+export class TLocalStorage {
+    constructor() {
+
+    }
+
+    setString(key, val) {
+        localStorage.setItem(key, val);
+    }
+
+    getString(key) {
+        return localStorage.getItem(key);
+    }
+
+    setStream(key, stream) {
+        this.setString(key, stream.buffer.toString());
+    }
+
+    getStream(key) {
+        let vs = this.getString(key);
+        let vBytes = vs.split(",");
+        let vStream = new TStream();
+        for (let i = 0, vLen = vBytes.length; i < vLen; i++)
+            vStream.writeByte(vBytes[i]);
+
+        vStream.position = 0;
+        return vStream;
+    }
+
+    removeKey(key) {
+        localStorage.removeItem(key);
+    }
+
+    hasKey(key) {
+        for (let i = 0; i < localStorage.length; i++) {
+            if (localStorage.key(i) == key)
+                return true;
+        }
+
+        return false;
+    }
+
+    clear() {
+        localStorage.clear();
+    }
+}

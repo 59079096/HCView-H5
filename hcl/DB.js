@@ -7,14 +7,15 @@
 
 =======================================================*/
 
-import { TObject, system } from "./System.js";
+import { TObject } from "./System.js";
+import { hcl } from "./HCL.js";
 
 export class TIndexedDB extends TObject {
     constructor() {
         super();
         this._indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
         if (!this._indexedDB)
-            system.exception("当前浏览器不支持indexedDB！");
+            hcl.exception("当前浏览器不支持indexedDB！");
 
         this.name = "";
         this.db = null;
@@ -25,7 +26,7 @@ export class TIndexedDB extends TObject {
     open(dbname, version = 1) {
         let vRequest = this._indexedDB.open(dbname, version);
         vRequest.onerror = (e) => {
-            system.exception(e.currentTarget.error.message);
+            hcl.exception(e.currentTarget.error.message);
         }
     
         vRequest.onsuccess = (e) => {

@@ -10,11 +10,10 @@
 import { TMouseEventArgs, TMouseButton, TKey } from "./Controls.js";
 import { TCustomForm, TFormShowState } from "./Forms.js";
 import { hcl } from "./HCL.js";
-import { system, TList, TObject, TPoint, TRect } from "./System.js";
+import { TList, TObject, TPoint, TRect } from "./System.js";
 import { TColor } from "./Graphics.js";
-import { theme } from "./theme.js";
 
-class TApplication extends TObject {
+export class TApplication extends TObject {
     constructor() {
         super();
 
@@ -127,7 +126,7 @@ class TApplication extends TObject {
 
     addForm(form) {
         if (!form.isClass(TCustomForm)) {
-            system.exception("application只能添加TCustomForm的子类！");
+            hcl.exception("application只能添加TCustomForm的子类！");
             return;
         }
 
@@ -411,7 +410,7 @@ class TApplication extends TObject {
     }
 
     createCaret(control, image, width, height) {
-        hcl._createCaret_(control, image, width, height);
+        hcl.__createCaret(control, image, width, height);
     }
 
     setCaretPos(x, y) {
@@ -465,7 +464,7 @@ class TApplication extends TObject {
                 }
 
                 hclCanvas.translate(vForm.left, vForm.top);
-                hclCanvas.clip(-theme.shadow, -theme.shadow, vForm.width + theme.shadow + theme.shadow, vForm.height + theme.shadow + theme.shadow);
+                hclCanvas.clip(-hcl.theme.shadow, -hcl.theme.shadow, vForm.width + hcl.theme.shadow + hcl.theme.shadow, vForm.height + hcl.theme.shadow + hcl.theme.shadow);
                 vForm.paint(hclCanvas);
             } finally {
                 hclCanvas.restore();
@@ -475,7 +474,7 @@ class TApplication extends TObject {
         if (hcl.design) {
             if (this.hclDesignControl != null) {
                 let vPt = this.hclDesignControl.clientToScreen(TPoint.Create(0, 0));
-                theme.drawDesign(hclCanvas, vPt.x, vPt.y, this.hclDesignControl.width, this.hclDesignControl.height);
+                hcl.theme.drawDesign(hclCanvas, vPt.x, vPt.y, this.hclDesignControl.width, this.hclDesignControl.height);
             }
         }
     }
@@ -486,16 +485,13 @@ class TApplication extends TObject {
     }
 
     run() {
+        hcl.applicationRun();
         this._runing = true;
         if (this.mainForm)
             this.mainForm.show();
-
-        hcl.applicationRun();
     }
 
     get runing() {
         return this._runing;
     }
 }
-
-export var application = new TApplication();

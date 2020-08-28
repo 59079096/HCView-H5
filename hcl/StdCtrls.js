@@ -7,19 +7,16 @@
 
 =======================================================*/
 
-import { application } from "./Application.js";
-import { clipboard } from "./Clipboard.js";
+import { hcl } from "./HCL.js";
 import { TAlign, TControl, TCursors, TCustomControl, THorizontalAlign, TKey, TMouseButton,
     TMouseEventArgs, TMouseStates, TOrientation, TPopupControl, TPopupWinControl, TScrollBar, TShiftState, TVerticalAlign, TControlState, TControlStyle } from "./Controls.js";
-import { TColor, TFont, TFontDetector, TFontStyle, THCCanvas } from "./Graphics.js";
-import { ime, TImeMode } from "./Ime.js";
-import { system, TBytes, TList, TObject, TPoint, TRect, TUtf16Encoding } from "./System.js";
-import { theme } from "./theme.js";
-import { hcl } from "./HCL.js";
+import { TColor, TFont, TFontDetector, TFontStyle, THCCanvas, TPenStyle } from "./Graphics.js";
+import { TImeMode } from "./Ime.js";
+import { TBytes, TList, TObject, TPoint, TRect, TUtf16Encoding, TFileExt } from "./System.js";
 
 export default class ThisIsHCL { }
 
-export var TImageSrcType = {
+export let TImageSrcType = {
     None: 0,
     URL: 1,
     Base64: 2
@@ -341,9 +338,10 @@ export class TTextControl extends TControl {
     }
 
     doPaintText_(hclCanvas, x, y) {
-        hclCanvas.font.assign(this.font);
+        /*hclCanvas.font.assign(this.font);  // 有点太频繁了，尤其是Memo
         if (!this.enabled)
-            hclCanvas.font.color = theme.textDisableColor;
+            hclCanvas.font.color = hcl.theme.textDisableColor;
+        */
 
         hclCanvas.textOut(x, y, this.text_);
     }
@@ -351,6 +349,8 @@ export class TTextControl extends TControl {
     doPaint_(hclCanvas) {
         if (this.text_.length > 0) {
             hclCanvas.font.assign(this.font);
+            if (!this.enabled)
+                hclCanvas.font.color = hcl.theme.textDisableColor;
 
             let vY = 0;
             switch (this._vertAlign) {
@@ -388,6 +388,17 @@ export class TTextControl extends TControl {
 
     doSetBorderVisible_() {
         this.update();
+    }
+
+    getText_() {
+        return this.text_;
+    }
+
+    setText_(val) {
+        if (this.text_ != val) {
+            this.text_ = val.toString();
+            this.doSetText_();
+        }
     }
 
     doSetText_() {
@@ -439,14 +450,11 @@ export class TTextControl extends TControl {
     }
 
     get text() {
-        return this.text_;
+        return this.getText_();
     }
 
     set text(val) {
-        if (this.text_ != val) {
-            this.text_ = val.toString();
-            this.doSetText_();
-        }
+        this.setText_(val);
     }
 
     get borderVisible() {
@@ -508,7 +516,7 @@ export class TUrlLable extends TLable {
 
     doClick_() {
         if (this.url != "")
-            system.openURL(this.url);
+            hcl.system.openURL(this.url);
 
         super.doClick_();
     }
@@ -554,20 +562,20 @@ export class TButton extends TTextControl {
         else
             this.width = this.paddingLeft + this.paddingRight;
 
-        if (this.width < theme.iconWidth)
-            this.width = theme.iconWidth;
+        if (this.width < hcl.theme.iconWidth)
+            this.width = hcl.theme.iconWidth;
     }
 
     doPaintStaticBackground_(hclCanvas) {
-        hclCanvas.brush.color = theme.backgroundLightColor;
+        hclCanvas.brush.color = hcl.theme.backgroundLightColor;
         hclCanvas.fillBounds(0, 0, this.width, this.height);
     }
 
     doPaintHotBackground_(hclCanvas) {
         if (this.mouseStates.has(TMouseStates.MouseDown))
-            hclCanvas.brush.color = theme.backgroundDownColor;
+            hclCanvas.brush.color = hcl.theme.backgroundDownColor;
         else
-            hclCanvas.brush.color = theme.backgroundHotColor;
+            hclCanvas.brush.color = hcl.theme.backgroundHotColor;
 
         hclCanvas.fillBounds(0, 0, this.width, this.height);
     }
@@ -610,7 +618,7 @@ export class TImageButton extends TButton {
     }
 
     doImageLoaded_() {
-        this.paddingLeft = theme.iconWidth;
+        this.paddingLeft = hcl.theme.iconWidth;
         this.doSetAutoWidth_();
         this.updateRect(this.image.bounds());
     }
@@ -648,7 +656,7 @@ export class TMenuButton extends TImageButton {
     constructor(text) {
         super(text);
         this.dropDownMenu = null;
-        this._paddingRight = theme.dropDownButtonSize;
+        this._paddingRight = hcl.theme.dropDownButtonSize;
     }
 
     doClick_() {
@@ -662,15 +670,15 @@ export class TMenuButton extends TImageButton {
 
     doPaintBackground_(hclCanvas) {
         super.doPaintBackground_(hclCanvas);
-        theme.drawDropDown(hclCanvas, TRect.CreateByBounds(this.width - theme.dropDownButtonSize,
-            0, theme.dropDownButtonSize, this.height));
+        hcl.theme.drawDropDown(hclCanvas, TRect.CreateByBounds(this.width - hcl.theme.dropDownButtonSize,
+            0, hcl.theme.dropDownButtonSize, this.height));
     }
 
     setTextVisible_(val) {
         if (this.textVisible_ != val) {
             this.textVisible_ = val;
             if (val)
-                this._paddingRight = theme.dropDownButtonSize;
+                this._paddingRight = hcl.theme.dropDownButtonSize;
             else
                 this._paddingRight = 0;
         }
@@ -691,7 +699,7 @@ export class TToolButton extends TImageButton {
 
     doPaintBackground_(hclCanvas) {
         if (this._checked) {
-            hclCanvas.brush.color = theme.backgroundDownColor;
+            hclCanvas.brush.color = hcl.theme.backgroundDownColor;
             hclCanvas.fillBounds(0, 0, this.width, this.height);
         } else
             super.doPaintBackground_(hclCanvas);
@@ -730,7 +738,7 @@ export class TToolBarSpliter extends TControl {
 
     doPaintBackground_(hclCanvas) {
         hclCanvas.pen.width = 1;
-        hclCanvas.pen.color = theme.borderColor;
+        hclCanvas.pen.color = hcl.theme.borderColor;
         hclCanvas.beginPath();
         hclCanvas.drawLine((this.width - hclCanvas.pen.width) / 2, 2,
             (this.width - hclCanvas.pen.width) / 2, this.height - 2);
@@ -748,8 +756,8 @@ export class TPanel extends TCustomControl {
 
     doPaintBorder_(hclCanvas) {
         if (this.borderVisible_) {
-            hclCanvas.pen.color = theme.borderColor;
-            hclCanvas.pen.width = theme.borderWidth;
+            hclCanvas.pen.color = hcl.theme.borderColor;
+            hclCanvas.pen.width = hcl.theme.borderWidth;
             hclCanvas.rectangleBounds(0, 0, this.width, this.height);
         }
     }
@@ -839,7 +847,7 @@ export class TCaptionBar extends TToolBar {
         this._y = e.y;
 
         if ((e.button == TMouseButton.Left && this.captureParent && this.getControlAt(e.x, e.y, false) === null)) {
-            application.setCapture(this);
+            hcl.application.setCapture(this);
             this.captured = true;
         }
         else
@@ -856,7 +864,7 @@ export class TCaptionBar extends TToolBar {
             vRect.offset(-1, -1);
             vControl.left += e.x - this._x;
             vControl.top += e.y - this._y;
-            application.updateRect(vRect); 
+            hcl.application.updateRect(vRect); 
 
             // while (control != null) {
             //     if (control instanceof TForm) {
@@ -867,7 +875,7 @@ export class TCaptionBar extends TToolBar {
             //         rect.offset(-1, -1);
             //         control.left += e.x - this._x;
             //         control.top += e.y - this._y;
-            //         application.updateRect(rect);
+            //         hcl.application.updateRect(rect);
             //         break;
             //     }
             //     else
@@ -879,7 +887,7 @@ export class TCaptionBar extends TToolBar {
     doMouseUp_(e) {
         super.doMouseUp_(e);
         if (this.captured) {
-            application.releaseCapture();
+            hcl.application.releaseCapture();
             this.captured = false;
         }
     }
@@ -891,12 +899,12 @@ export class TCheckBox extends TLable {
         this._checked = false;
         this._downInCheck = false;
         this._checkByText = true;
-        this.paddingLeft = 2 + theme.iconSize;
-        this.FOnSwitch = null;
+        this.paddingLeft = 2 + hcl.theme.iconSize;
+        this.onSwitch = null;
     }
 
     _getBoxRect() {
-        return TRect.CreateByBounds(2, Math.trunc((this.height - theme.iconSize) / 2) + 1, theme.iconSize - 2, theme.iconSize - 2);
+        return TRect.CreateByBounds(2, Math.trunc((this.height - hcl.theme.iconSize) / 2) + 1, hcl.theme.iconSize - 2, hcl.theme.iconSize - 2);
     }
 
     doCalcWidth_() {
@@ -904,8 +912,8 @@ export class TCheckBox extends TLable {
     }
 
     doSetBounds_() {
-        if (this.height_ < theme.iconSize)
-            this.height_ = theme.iconSize;
+        if (this.height_ < hcl.theme.iconSize)
+            this.height_ = hcl.theme.iconSize;
 
         super.doSetBounds_();
     }
@@ -943,8 +951,8 @@ export class TCheckBox extends TLable {
                 //;
             } else {
                 this.checked = !this._checked;
-                if (this.FOnSwitch != null)
-                    this.FOnSwitch();
+                if (this.onSwitch != null)
+                    this.onSwitch();
             }
         }
         
@@ -953,15 +961,15 @@ export class TCheckBox extends TLable {
 
     doPaint_(hclCanvas) {
         if (this.mouseIn)
-            hclCanvas.pen.color = theme.borderHotColor;
+            hclCanvas.pen.color = hcl.theme.borderHotColor;
         else
-            hclCanvas.pen.color = theme.borderColor;
+            hclCanvas.pen.color = hcl.theme.borderColor;
 
         let vBoxRect = this._getBoxRect();
         if (this._checked)
-            theme.drawFrameControl(hclCanvas, vBoxRect, new Set([TControlState.Checked]), TControlStyle.CheckBox);
+            hcl.theme.drawFrameControl(hclCanvas, vBoxRect, new Set([TControlState.Checked]), TControlStyle.CheckBox);
         else
-            theme.drawFrameControl(hclCanvas, vBoxRect, new Set([]), TControlStyle.CheckBox);
+            hcl.theme.drawFrameControl(hclCanvas, vBoxRect, new Set([]), TControlStyle.CheckBox);
 
         super.doPaint_(hclCanvas);
     }
@@ -975,14 +983,6 @@ export class TCheckBox extends TLable {
             this._checked = val;
             this.updateRect(this._getBoxRect());
         }
-    }
-
-    get onSwitch() {
-        return this.FOnSwitch;
-    }
-
-    set onSwitch(val) {
-        this.FOnSwitch = val;
     }
 }
 
@@ -1029,7 +1029,7 @@ export class TInputControl extends TTextControl {
 
     removed_() {
         super.removed_();
-        ime.removeControl(this);
+        hcl.ime.removeControl(this);
     }
 
     doContextMenu_(x, y) {
@@ -1045,7 +1045,7 @@ export class TInputControl extends TTextControl {
     doCheckImeMode_() {
         if (!this._readOnly) {
             if (this.imeMode != TImeMode.Disabled)
-                ime.setControl(this);  // 保证显示光标时ime的Control是我
+                hcl.ime.setControl(this);  // 保证显示光标时ime的Control是我
         }
     }
 
@@ -1057,7 +1057,7 @@ export class TInputControl extends TTextControl {
     doMouseUp_(e) {
         if (!this._readOnly && this.mouseStates.has(TMouseStates.MouseDown)) {
             if (this.imeMode != TImeMode.Disabled)
-                ime.setControl(this);  // 保证ime在鼠标弹起时有机会激活(浏览器在鼠标弹起时才激活)
+                hcl.ime.setControl(this);  // 保证ime在鼠标弹起时有机会激活(浏览器在鼠标弹起时才激活)
         }
 
         super.doMouseUp_(e);
@@ -1095,7 +1095,9 @@ export class TInputControl extends TTextControl {
         this.text = this.text.delete(index, length);
     }
 
-    imeInput(text, isPaste) { }  // eslint-disable-line
+    imePaste() { }
+
+    imeInput(text) { }  // eslint-disable-line
 
     get readOnly() {
         return this._readOnly;
@@ -1114,7 +1116,6 @@ export class TEdit extends TInputControl {
         super(text);
         this.canFocus = true;
         this.borderVisible_ = true;
-        this._innerPasted = false;  // 内部响应了粘贴，防止和输入法Input的粘贴冲突
         this._vertAlign = TVerticalAlign.Center;
         this._selStart = -1;
         this._selEnd = -1;
@@ -1181,12 +1182,12 @@ export class TEdit extends TInputControl {
     }
 
     _createCaret() {
-        application.createCaret(this, null, 0, this.font.height + 1);
+        hcl.application.createCaret(this, null, 0, this.font.height + 1);
     }
 
     _destroyCaret() {
-        application.destroyCaret(this);
-    }    
+        hcl.application.destroyCaret(this);
+    }
 
     getCharOffsetAt_(x, y) {  // eslint-disable-line
         let vX = x - (this.borderVisible_ ? this.borderWidth_ : 0) - this.paddingLeft + this._leftOffset;
@@ -1270,22 +1271,21 @@ export class TEdit extends TInputControl {
 
     doPaintBorder_(hclCanvas, rect) {
         hclCanvas.pen.width = this.borderWidth_;
+        hclCanvas.pen.style = TPenStyle.Solid;
         if (this._readOnly)
-            hclCanvas.pen.color = theme.borderColor;
+            hclCanvas.pen.color = hcl.theme.borderColor;
+        else if (this.focused)
+            hclCanvas.pen.color = hcl.theme.borderActiveColor;
+        else if (this.mouseIn)
+            hclCanvas.pen.color = hcl.theme.borderHotColor;
         else
-        if (this.focused)
-            hclCanvas.pen.color = theme.borderActiveColor;
-        else
-        if (this.mouseIn)
-            hclCanvas.pen.color = theme.borderHotColor;
-        else
-            hclCanvas.pen.color = theme.borderColor;
+            hclCanvas.pen.color = hcl.theme.borderColor;
             
         hclCanvas.rectangleRect(rect);
     }
 
     doPaintSelected_(hclCanvas) {
-        hclCanvas.brush.color = theme.backgroundSelectColor;
+        hclCanvas.brush.color = hcl.theme.backgroundSelectColor;
         let vLeft = this.getCharLeft_(this._selStart);
         let vRight = this.getCharLeft_(this._selEnd);
         let vRect = this.textArea();
@@ -1299,13 +1299,13 @@ export class TEdit extends TInputControl {
             return;
 
         let vX = this.getCharLeft_(this._selStart) - 1;
-        ime.updatePosition(vX, 0);
-        application.setCaretPos(vX, this.getCharTop_() - 1);
-        application.showCaret(this);
+        hcl.ime.updatePosition(vX, 0);
+        hcl.application.setCaretPos(vX, this.getCharTop_() - 1);
+        hcl.application.showCaret(this);
     }
 
     hideCaret_() {
-        application.hideCaret(this);
+        hcl.application.hideCaret(this);
     }
 
     doCopy_() {
@@ -1516,7 +1516,7 @@ export class TEdit extends TInputControl {
                 break;
 
             case TKey.Left:
-                if (e.shift.compare(new Set([TShiftState.Shift])))
+                if (e.shiftState.compare(new Set([TShiftState.Shift])))
                     this._selectActionLeft();
                 else
                     this.doLeftKeyDown_();
@@ -1524,7 +1524,7 @@ export class TEdit extends TInputControl {
                 break;
 
             case TKey.Right:
-                if (e.shift.compare(new Set([TShiftState.Shift])))
+                if (e.shiftState.compare(new Set([TShiftState.Shift])))
                     this._selectActionRight();
                 else
                     this.doRightKeyDown_();
@@ -1540,25 +1540,25 @@ export class TEdit extends TInputControl {
                 break;
 
             case TKey.A:
-                if (e.shift.compare(new Set([TShiftState.Ctrl])))
+                if (e.shiftState.compare(new Set([TShiftState.Ctrl])))
                     this.selectAll();
                 
                 break;
 
             case TKey.C:
-                if (e.shift.compare(new Set([TShiftState.Ctrl])))
+                if (e.shiftState.compare(new Set([TShiftState.Ctrl])))
                     this.copy();
                 
                 break;
     
             case TKey.V:
-                if (e.shift.compare(new Set([TShiftState.Ctrl])))
+                if (e.shiftState.compare(new Set([TShiftState.Ctrl])))
                     this.paste();
 
                 break;
 
             case TKey.X:
-                if (e.shift.compare(new Set([TShiftState.Ctrl]))) 
+                if (e.shiftState.compare(new Set([TShiftState.Ctrl]))) 
                     this.cut();
             
                 break;
@@ -1604,7 +1604,7 @@ export class TEdit extends TInputControl {
         let vRect = this.clientRect();
         // background
         vRect.left = this.paddingLeft;
-        hclCanvas.brush.color = theme.backgroundContentColor;
+        hclCanvas.brush.color = hcl.theme.backgroundContentColor;
         hclCanvas.fillRect(vRect);
 
         // selected background
@@ -1688,13 +1688,14 @@ export class TEdit extends TInputControl {
     }
 
     copy() {
+        hcl.clipboard.clear();
         if (this.selectExists())
-            clipboard.setText(this.selectText());
+            hcl.clipboard.setText(this.selectText());
     }
 
     copyToBrower() {
         if (this.selectExists())
-            clipboard.toBrowerClipboard(this.selectText());
+            hcl.clipboard.toBrowerClipboard(this.selectText());
     }
 
     cut() {
@@ -1703,12 +1704,9 @@ export class TEdit extends TInputControl {
     }
 
     paste() {
-        this._innerPasted = false;
-        let vText = clipboard.getText();
-        if (vText != null) {
-            this._innerPasted = true;
+        let vText = hcl.localStorage.getString(TFileExt.Text);  //hcl.clipboard.getText();
+        if (vText != null) 
             this.insertText(this._selStart, vText);
-        }
     }
 
     deleteSelect() {
@@ -1767,13 +1765,9 @@ export class TEdit extends TInputControl {
         return false;
     }
 
-    imeInput(text, isPaste) {
-        if (isPaste && this._innerPasted)
-            return;
-
-        if (!this.readOnly) {
+    imeInput(text) {
+        if (!this.readOnly)
             this.insertText(this._selStart, text);
-        }
     }
 
     get selStart() {
@@ -1806,7 +1800,657 @@ export class TEdit extends TInputControl {
     }
 }
 
-export var TValueMask = {
+class TMemoLine extends TObject {
+    constructor(text) {
+        super();
+        this.text = text;
+        this.firstDrawNo = -1;
+    }
+}
+
+class TLineDraw extends TObject {
+    constructor() {
+        super();
+        this.lineNo = -1;
+        this.offset = -1;
+        this.length = 0;
+        this.rect = new TRect();
+    }
+}
+
+class TMemoSelInfo {
+    constructor() {
+        this.init();
+    }
+
+    assign(src) {
+        this.drawNo = src.drawNo;
+        this.offset = src.offset;
+    }
+
+    init() {
+        this.drawNo = -1;
+        this.offset = -1;
+    }
+}
+
+export class TMemo extends TInputControl {
+    constructor(text = "") {
+        super("");
+        this.canFocus = true;
+        this.borderVisible_ = true;
+        this.width_ = 160;
+        this.height_ = 80;
+        this._marginLeft = 2;
+        this._marginTop = 2;
+        this._marginRight = 2;
+        this._marginBottom = 2;
+        this._paddingLeft = 2;
+        this._paddingTop = 2;
+        this._paddingRight = 2;
+        this._paddingBottom = 2;
+        this._lineSpace = hcl.theme.marginSpace;
+        this._firstDraw = -1;
+        this._lastDraw = -1;
+        this._selStart = new TMemoSelInfo();
+        this._selEnd = new TMemoSelInfo();
+        this._selMove = new TMemoSelInfo();
+
+        this.canFocus = true;
+        this.imeMode = TImeMode.Active;
+        this.hscrollBar = new TScrollBar();
+        this.hscrollBar.onShow = () => { this._scrollBarVisibleChange(); }
+        this.hscrollBar.onHide = () => { this._scrollBarVisibleChange(); }
+        this.hscrollBar.onScroll = (scrollCode, position) => { this.update(); }
+
+        this.vscrollBar = new TScrollBar();
+        this.vscrollBar.orientation = TOrientation.Vertical;
+        this.vscrollBar.onShow = () => { this._scrollBarVisibleChange(); }
+        this.vscrollBar.onHide = () => { this._scrollBarVisibleChange(); }
+        this.vscrollBar.onScroll = (scrollCode, position) => { this.update(); }
+
+        this._drawItems = new TList();
+        this.lines = new TList();
+        this.lines.onAdded = (item) => { this._reSetContent(); }
+
+        this.lines.onRemoved = (item) => {  // eslint-disable-line
+            this._itemIndex = -1;
+            this._hotIndex = -1;
+            this._reSetContent();
+        }
+
+        this.text = text;
+    }
+
+    _scrollBarVisibleChange() {
+        this.doFormat();
+        this._reSetContent();
+        this.update();
+    }
+
+    _getDrawText(i) {
+        let vDraw = this._drawItems[i];
+        return this.lines[vDraw.lineNo].text.substr(vDraw.offset - 1, vDraw.length);
+    }
+
+    _getDisplayDraws() {
+        this._firstDraw = -1;
+        this._lastDraw = -1;
+        for (let i = 0; i < this._drawItems.count; i++) {
+            if (this._drawItems[i].rect.bottom - this.vscrollBar.position > this._paddingTop) {
+                this._firstDraw = i;
+                break;
+            }
+        }
+
+        if (this._firstDraw >= 0) {
+            for (let i = this._drawItems.count - 1; i >= this._firstDraw; i--) {
+                if (this._drawItems[i].rect.top - this.vscrollBar.position < this.height_ - this._paddingBottom) {
+                    this._lastDraw = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    getText_() {
+        let vS = this.lines[0];
+        for (let i = 1; i < this.lines.count; i ++)
+            vS += hcl.system.lineBreak + this.lines[i];
+
+        return vS;
+    }
+
+    setText_(val) {
+        this.clear();
+        let vArr = val.split(hcl.system.lineBreak), vLine;
+        for (let i = 0; i < vArr.length; i++) {
+            vLine = new TMemoLine(vArr[i]);
+            this.lines.add(vLine);
+        }
+
+        this.doFormat();
+    }
+
+    textArea() {
+        let vRect = super.textArea();
+        if (this.hscrollBar.visible)
+            vRect.bottom -= this.hscrollBar.height;
+
+        if (this.vscrollBar.visible)
+            vRect.right -= this.vscrollBar.width;
+
+        return vRect;
+    }
+
+    clear() {
+        this._firstDraw = -1;
+        this._lastDraw = -1;
+        this._drawItems.clear();
+        this.lines.clear();
+        this.hscrollBar.position = 0;
+        this.vscrollBar.position = 0;
+    }
+
+    _newDraw(lineNo, offset, length, rect) {
+        let vDraw = new TLineDraw();
+        vDraw.lineNo = lineNo;
+        vDraw.offset = offset;
+        vDraw.length = length;
+        vDraw.rect.resetRect(rect);
+        this._drawItems.add(vDraw);
+        if (offset == 1)
+            this.lines[lineNo].firstDrawNo = this._drawItems.count - 1;
+    }
+
+    doFormat() {
+        this._drawItems.clear();
+        let vLine, vS, vLen, vCharWArr,
+            vRect = this.textArea(),
+            vW = vRect.width;
+
+        let vTop = this._paddingTop
+        if (this.borderVisible_)
+            vTop += this.borderWidth_;
+
+        if (this.hscrollBar.visible) {
+            for (let i = 0; i < this.lines.count; i++) {
+                vLine = this.lines[i];
+                vS = vLine.text;
+                vRect.resetBounds(this._paddingLeft, vTop,
+                    THCCanvas.textWidth(this.font, vS), this.font.height);
+
+                this._newDraw(i, 1, vS.length, vRect);
+            }
+
+            this._reSetContent();
+            return;
+        }
+
+        for (let i = 0; i < this.lines.count; i++) {
+            vLine = this.lines[i];
+            vS = vLine.text;
+            if (vS != "") {
+                vCharWArr = THCCanvas.getTextExtentExPoint(this.font, vS);
+                vLen = vCharWArr.length;
+                let j = 0, vOffset = 0, vRight = vW;
+                while (j < vLen) {
+                    if (vCharWArr[j] > vRight) {
+                        vRect.resetBounds(this._paddingLeft, vTop, vW, this.font.height);
+                        this._newDraw(i, vOffset + 1, j - vOffset, vRect);
+                        if (j > 0)
+                            vRight = vCharWArr[j - 1] + vW;
+                        else  // 容错
+                            vRight += vW;
+
+                        vOffset = j;
+                        vTop += this.font.height + this._lineSpace;
+                        continue;
+                    }
+
+                    j++;
+                }
+
+                if (vOffset < vLen) {
+                    vRect.resetBounds(this._paddingLeft, vTop, vW, this.font.height);
+                    this._newDraw(i, vOffset + 1, vLen - vOffset, vRect);
+                }
+            } else {
+                vRect.resetBounds(this._paddingLeft, vTop, 0, this.font.height);
+                this._newDraw(i, 1, 0, vRect);
+            }
+        }
+
+        this._reSetContent();
+    }
+
+    _getContentHeight() {
+        if (this._drawItems.count > 0)
+            return this._drawItems.last.rect.bottom - this._drawItems.first.rect.top;
+        else
+            return 0;
+    }
+
+    _getContentWidth() {
+        if (this.hscrollBar.visible) {
+            let vW = 0;
+            for (let i = 0; i < this._drawItems.count; i++) {
+                if (this._drawItems[i].rect.width > vW)
+                    vW = this._drawItems[i].rect.width;
+            }
+
+            return vW;
+        } else
+            return this._drawItems[0].rect.width;
+    }
+
+    _reSetContent() {
+        //let vRect = this.textArea();
+        if (this.hscrollBar.visible) {
+            let vW = this._getContentWidth() + this._paddingRight;
+            this.hscrollBar.left = 1;
+            this.hscrollBar.top = this.height - this.hscrollBar.height;
+            this.hscrollBar.width = this.width - 1;
+            if (this.borderVisible_) {
+                vW += this.borderWidth_;
+                this.hscrollBar.left += this.borderWidth_;
+                this.hscrollBar.top -= this.borderWidth_;
+                this.hscrollBar.width -= this.borderWidth_ + this.borderWidth_;
+            }
+
+            if (this.vscrollBar.visible)
+                this.hscrollBar.width -= this.vscrollBar.width;
+
+            this.hscrollBar.max = vW;
+        }
+
+        if (this.vscrollBar.visible) {
+            let vH = this._getContentHeight() + this._paddingBottom;
+            this.vscrollBar.left = this.width_ - this.vscrollBar.width;
+            this.vscrollBar.top = 0;
+            this.vscrollBar.height = this.height;
+            if (this.borderVisible_) {
+                vH += this.borderWidth_;
+                this.vscrollBar.left -= this.borderWidth_;
+                this.vscrollBar.top += this.borderWidth_;
+                this.vscrollBar.height -= this.borderWidth_ + this.borderWidth_;
+            }
+
+            if (this.hscrollBar.visible) {
+                //this.vscrollBar.height -= this.hscrollBar.height;
+                this.vscrollBar.max = vH + this.hscrollBar.height;
+            } else
+                this.vscrollBar.max = vH;
+        }
+    }
+
+    doResize_() {
+        super.doResize_();
+        this._reSetContent();
+    }
+
+    getDrawOffsetPosition_(selInfo) {
+        return {
+            x: 0,
+            y: this._drawItems[selInfo.drawNo].rect.top
+        }
+    }
+
+    _createCaret() {
+        hcl.application.createCaret(this, null, 0, this.font.height + 1);
+    }
+
+    _destroyCaret() {
+        hcl.application.destroyCaret(this);
+    }
+
+    showCaret_() {
+        if (this._selStart.drawNo < 0)
+            return;
+
+        let vPt = this.getDrawOffsetPosition_(this._selStart);
+        hcl.ime.updatePosition(vPt.x - 1, 0);
+        hcl.application.setCaretPos(vPt.x - 1, vPt.y - 1);
+        hcl.application.showCaret(this);
+    }
+
+    hideCaret_() {
+        hcl.application.hideCaret(this);
+    }
+
+    dispose() {
+        this._destroyCaret();        
+    }
+
+    resetSelect_() {
+        if (this.selectExists())
+            this.hideCaret_();
+        else if (this._selStart.drawNo >= 0)
+            this.showCaret_();
+
+        this.update();
+    }
+
+    getCharOffsetAt_(x, y) {
+        let vDraw, vDrawNo = -1, vOffset = -1;
+        for (let i = 0; i < this._drawItems.count; i++) {
+            vDraw = this._drawItems[i];
+            if (y >= vDraw.rect.top && y <= vDraw.rect.bottom + this._lineSpace) {
+                vDrawNo = i;
+                break;
+            }
+        }
+
+        if (vDrawNo < 0)
+            return;
+
+        let vS = this._getDrawText(vDrawNo);
+        if (vS != "") {
+            vOffset = vS.length;
+            let vX = x - (this.borderVisible_ ? this.borderWidth_ : 0)
+                - this.paddingLeft + this.hscrollBar.position;
+
+            let vCharWArr = THCCanvas.getTextExtentExPoint(this.font, vS);
+            for (let i = 0; i < vCharWArr.length; i++) {
+                if (vCharWArr[i] > vX) {
+                    if (i > 0) {
+                        if (vX > vCharWArr[i] + (vCharWArr[i] - vCharWArr[i - 1]) / 2)
+                            vOffset = i + 1;
+                        else
+                            vOffset = i;
+                    } else {  // i == 0
+                        if (vX > vCharWArr[0] / 2)
+                            vOffset = 1;
+                        else
+                            vOffset = 0;
+                    }
+
+                    break;
+                }
+            }
+        } else
+            vOffset = 0;
+
+        return {
+            drawNo: vDrawNo,
+            offset: vOffset
+        }
+    }
+
+    scrollAdjust_() {
+
+    }
+
+    doSetFocus_(accept) {
+        super.doSetFocus_(accept);
+        if (accept) {
+            this._createCaret();
+            // 保证调用setFocus方法时，也能有光标显示
+            this._selStart.init();
+            this._selMove.init();
+            this.scrollAdjust_(this._selMove);
+            this.resetSelect_();
+            this.doCheckImeMode_();
+        }
+    }
+
+    doKillFocus_() {
+        this.disSelect();
+        this._selStart.init();
+        this._selMove.init();
+        this.hscrollBar.position = 0;
+        this.vscrollBar.position = 0;
+        super.doKillFocus_();
+    }
+
+    doMouseDown_(e) {
+        this._mouseDownHScrollBar = false, this._mouseDownVScrollBar = false;
+        let vRect;
+
+        if (this.hscrollBar.visible) {
+            vRect = this.hscrollBar.bounds();
+            if (vRect.pointInAt(e.x, e.y)) {
+                this._mouseDownHScrollBar = true;
+                let vMouseArgs = new TMouseEventArgs();
+                vMouseArgs.assign(e);
+                vMouseArgs.x -= vRect.left;
+                vMouseArgs.y -= vRect.top;
+                this.hscrollBar.mouseDown(vMouseArgs);
+                return;
+            }
+        }
+
+        if (this.vscrollBar.visible) {
+            vRect = this.vscrollBar.bounds();
+            if (vRect.pointInAt(e.x, e.y)) {
+                this._mouseDownVScrollBar = true;
+                let vMouseArgs = new TMouseEventArgs();
+                vMouseArgs.assign(e);
+                vMouseArgs.x -= vRect.left;
+                vMouseArgs.y -= vRect.top;
+                this.vscrollBar.mouseDown(vMouseArgs);
+                return;
+            }
+        }
+
+        if (this.textArea().pointInAt(e.x, e.y)) {
+            super.doMouseDown_(e);
+
+            if (e.button == TMouseButton.Left) {
+                this.disSelect();
+                if (e.x > 0 && e.x < this.width - (this.borderVisible_ ? this.borderWidth_ : 0) - this.paddingRight) {
+                    let vInfo = this.getCharOffsetAt_(e.x, e.y);
+                    this._selStart.assign(vInfo);
+                    this._selMove.assign(this._selStart);
+                    this.scrollAdjust_(this._selMove);
+                    this.resetSelect_();
+                }
+            } else if (this._selStart.drawNo < 0) {
+                let vInfo = this.getCharOffsetAt_(e.x, e.y);
+                this._selStart.assign(vInfo);
+                this._selMove.assign(this._selStart);
+                this.scrollAdjust_(this._selMove);
+                this.resetSelect_();
+            }
+        }
+    }
+
+    doMouseMove_(e) {
+        //let vBarHandled = false;
+        if (this.hscrollBar.visible) {
+            let vRect = this.hscrollBar.bounds();
+            if (vRect.pointInAt(e.x, e.y)) {
+                //vBarHandled = true;
+                let vMouseArgs = new TMouseEventArgs();
+                vMouseArgs.assign(e);
+                vMouseArgs.x -= vRect.left;
+                vMouseArgs.y -= vRect.top;
+                this.hscrollBar.mouseMove(vMouseArgs);
+                this.cursor = this.hscrollBar.cursor;
+                return;
+            } else if (this._mouseDownHScrollBar) {
+                //vBarHandled = true;
+                let vMouseArgs = new TMouseEventArgs();
+                vMouseArgs.assign(e);
+                vMouseArgs.x = vRect.left;  // 约束到滚动条位置
+                vMouseArgs.y -= vRect.top;
+                this.hscrollBar.mouseMove(vMouseArgs);
+                this.cursor = this.hscrollBar.cursor;
+                return;
+            }
+        }
+
+        if (this.vscrollBar.visible) {
+            let vRect = this.vscrollBar.bounds();
+            if (vRect.pointInAt(e.x, e.y)) {
+                //vBarHandled = true;
+                let vMouseArgs = new TMouseEventArgs();
+                vMouseArgs.assign(e);
+                vMouseArgs.x -= vRect.left;
+                vMouseArgs.y -= vRect.top;
+                this.vscrollBar.mouseMove(vMouseArgs);
+                this.cursor = this.vscrollBar.cursor;
+                return;
+            } else if (this._mouseDownVScrollBar) {
+                //vBarHandled = true;
+                let vMouseArgs = new TMouseEventArgs();
+                vMouseArgs.assign(e);
+                vMouseArgs.x = vRect.left;  // 约束到滚动条位置
+                vMouseArgs.y -= vRect.top;
+                this.vscrollBar.mouseMove(vMouseArgs);
+                this.cursor = this.vscrollBar.cursor;
+                return;
+            }
+        }
+
+        // if (vBarHandled && this._hotIndex >= 0) {
+        //     this._setHotIndex(-1);
+        //     return;
+        // }
+
+        // if (this._mouseDownScrollBar)
+        //     this._setHotIndex(-1);
+        // else
+        //     this._setHotIndex(this._getItemIndexAt(e.x, e.y));
+        this.cursor = TCursors.Ibeam;
+        super.doMouseMove_(e);
+    }
+
+    doMouseUp_(e) {
+        if (this._mouseDownHScrollBar) {
+            if (this.hscrollBar.visible) {
+                let vRect = this.hscrollBar.bounds();
+                if (vRect.pointInAt(e.x, e.y)) {
+                    let vMouseArgs = new TMouseEventArgs();
+                    vMouseArgs.assign(e);
+                    vMouseArgs.x -= vRect.left;
+                    vMouseArgs.y -= vRect.top;
+                    this.hscrollBar.mouseUp(vMouseArgs);
+                }
+            }
+
+            this._mouseDownHScrollBar = false;
+            return;
+        }
+        
+        if (this.hscrollBar.visible) {
+            let vRect = this.hscrollBar.bounds();
+            if (vRect.pointInAt(e.x, e.y))
+                return;
+        }
+
+        if (this._mouseDownVScrollBar) {
+            if (this.vscrollBar.visible) {
+                let vRect = this.vscrollBar.bounds();
+                if (vRect.pointInAt(e.x, e.y)) {
+                    let vMouseArgs = new TMouseEventArgs();
+                    vMouseArgs.assign(e);
+                    vMouseArgs.x -= vRect.left;
+                    vMouseArgs.y -= vRect.top;
+                    this.vscrollBar.mouseUp(vMouseArgs);
+                }
+            }
+
+            this._mouseDownVScrollBar = false;
+            return;
+        }
+        
+        if (this.vscrollBar.visible) {
+            let vRect = this.vscrollBar.bounds();
+            if (vRect.pointInAt(e.x, e.y))
+                return;
+        }
+
+        // if (e.button == TMouseButton.Left && this.textArea().pointInAt(e.x, e.y))
+        //     this.itemIndex = this._getItemIndexAt(e.x, e.y);
+
+        super.doMouseUp_(e);
+    }
+
+    doMouseWheel_(e) {
+        if (this.vscrollBar.visible) {
+            if (e.delta < 0)
+                this.vscrollBar.position += 20;
+            else
+                this.vscrollBar.position -= 20;
+        }
+
+        super.doMouseWheel_(e);
+    }
+
+    doPaintBorder_(hclCanvas, rect) {
+        hclCanvas.pen.width = this.borderWidth_;
+        hclCanvas.pen.style = TPenStyle.Solid;
+        if (this._readOnly)
+            hclCanvas.pen.color = hcl.theme.borderColor;
+        else if (this.focused)
+            hclCanvas.pen.color = hcl.theme.borderActiveColor;
+        else if (this.mouseIn)
+            hclCanvas.pen.color = hcl.theme.borderHotColor;
+        else
+            hclCanvas.pen.color = hcl.theme.borderColor;
+            
+        hclCanvas.rectangleRect(rect);
+    }
+
+    doPaint_(hclCanvas) {
+        hclCanvas.save();
+        try {
+            let vRect = this.textArea();
+            hclCanvas.clipRect(vRect);
+            this._getDisplayDraws();
+            if (this._firstDraw < 0)
+                return;
+
+            hclCanvas.font.assign(this.font);
+            if (!this.enabled)
+                hclCanvas.font.color = hcl.theme.textDisableColor;
+
+            let vS, vDraw;
+            for (let i = this._firstDraw; i <= this._lastDraw; i++) {
+                vDraw = this._drawItems[i];
+                vS = this._getDrawText(i);
+                hclCanvas.textOut(vDraw.rect.left - this.hscrollBar.position, vDraw.rect.top - this.vscrollBar.position, vS);
+            }
+        } finally {
+            hclCanvas.restore();
+        }
+
+        if (this.vscrollBar.visible)
+            this.vscrollBar.paintTo(hclCanvas, this.vscrollBar.left, this.vscrollBar.top);
+
+        if (this.hscrollBar.visible)
+            this.hscrollBar.paintTo(hclCanvas, this.hscrollBar.left, this.hscrollBar.top);
+    }
+
+    doPaintBackground_(hclCanvas) {
+        let vRect = this.clientRect();
+        // background
+        vRect.left = this.paddingLeft;
+        hclCanvas.brush.color = hcl.theme.backgroundContentColor;
+        hclCanvas.fillRect(vRect);
+
+        // border
+        if (this.borderVisible_) {
+            vRect.left -= this.borderWidth_;
+            this.doPaintBorder_(hclCanvas, vRect);
+        }
+    }
+
+    selectExists() {
+        return false;
+    }
+
+    disSelect() {
+        this._selMove = this._selStart;
+        if (this.selectExists()) {
+            this._selEnd = -1;
+            this.resetSelect_();
+        } 
+    }
+}
+
+export let TValueMask = {
     Integer: 0,
     Number: 1
 }
@@ -1842,6 +2486,19 @@ export class TNumberEdit extends TEdit {
         super.doInsertText(index, text);
     }
 
+    doKeyDown_(e) {
+        if (e.keyCode == TKey.Up) {
+            let vInfo = hcl.system.tryParseInt(this.text);
+            if (vInfo.ok)
+                this.text = (vInfo.value + 1).toString();
+        } else if (e.keyCode == TKey.Down) {
+            let vInfo = hcl.system.tryParseInt(this.text);
+            if (vInfo.ok)
+                this.text = (vInfo.value - 1).toString();
+        } else
+            super.doKeyDown_(e);
+    }
+
     get number() {
         switch (this.valueMask_) {
             case TValueMask.Number:
@@ -1865,13 +2522,13 @@ export class TLableEdit extends TEdit {
     constructor(lableText, text) {
         super(text);
         this._lableText = lableText;
-        this._paddingLeft = theme.marginSpaceDouble + THCCanvas.textWidth(this.font, this._lableText);
+        this._paddingLeft = hcl.theme.marginSpaceDouble + THCCanvas.textWidth(this.font, this._lableText);
         this.width_ = THCCanvas.textWidth(THCCanvas.DefaultFont, lableText) + 75;
     }
 
     doPaintBackground_(hclCanvas) {
         hclCanvas.font.assign(THCCanvas.DefaultFont);
-        hclCanvas.textOut(theme.marginSpace, this.getCharTop_(), this._lableText);
+        hclCanvas.textOut(hcl.theme.marginSpace, this.getCharTop_(), this._lableText);
         super.doPaintBackground_(hclCanvas);
     }
 }
@@ -1880,12 +2537,12 @@ export class TButtonEdit extends TEdit {
     constructor(text) {
         super(text);
         
-        this.image = new Image(theme.iconSize, theme.iconSize);
+        this.image = new Image(hcl.theme.iconSize, hcl.theme.iconSize);
         this.image.onload = (e) => {  // eslint-disable-line
             this._updateButtonRect();
         }
 
-        this._paddingRight = theme.iconSize;
+        this._paddingRight = hcl.theme.iconSize;
         this._buttonMouseIn = false;
         this._buttonDown = false;
         this._buttonRect = new TRect();
@@ -1909,9 +2566,9 @@ export class TButtonEdit extends TEdit {
         super.doPaintBackground_(hclCanvas);
         if (this._buttonMouseIn) {
             if (this._buttonDown)
-                hclCanvas.brush.color = theme.backgroundDownColor;
+                hclCanvas.brush.color = hcl.theme.backgroundDownColor;
             else 
-                hclCanvas.brush.color = theme.backgroundHotColor;
+                hclCanvas.brush.color = hcl.theme.backgroundHotColor;
 
             hclCanvas.fillRect(this._buttonRect);
         }
@@ -1919,7 +2576,7 @@ export class TButtonEdit extends TEdit {
         if (this.image.loaded)
             hclCanvas.drawImage(this._buttonRect.left, this._buttonRect.top, this.image);
         else
-            theme.drawDropDown(hclCanvas, this._buttonRect);
+            hcl.theme.drawDropDown(hclCanvas, this._buttonRect);
     }
 
     doMouseEnter_() {
@@ -2075,14 +2732,14 @@ export class TListBox extends TTextControl {
     _calcDisplayItem() {
         if (this._items.count > 0) {
             this._displayFirst = 0;
-            let vTop = this.paddingTop - this._getTopOffset() + this.font.height + theme.marginSpaceDouble;
+            let vTop = this.paddingTop - this._getTopOffset() + this.font.height + hcl.theme.marginSpaceDouble;
             for (let i = 0; i < this._items.count; i++) {
                 if (vTop > 0) {
                     this._displayFirst = i;
                     break;
                 }
                 else
-                    vTop = vTop + this.font.height + theme.marginSpaceDouble;
+                    vTop = vTop + this.font.height + hcl.theme.marginSpaceDouble;
             }
 
             this._displayLast = this._items.count - 1;
@@ -2092,7 +2749,7 @@ export class TListBox extends TTextControl {
                     break;
                 }
                 else
-                    vTop = vTop + this.font.height + theme.marginSpaceDouble;
+                    vTop = vTop + this.font.height + hcl.theme.marginSpaceDouble;
             }
         } else {
             this._displayFirst = -1;
@@ -2102,18 +2759,18 @@ export class TListBox extends TTextControl {
 
     _getItemRect(index) {
         return TRect.CreateByBounds(this.paddingLeft, 
-            index * (this.font.height + theme.marginSpaceDouble) - this._getTopOffset() + this.paddingTop + (this.borderVisible_ ? this.borderWidth_ : 0), 
-            this.width - this._paddingLeft - this.paddingRight, this.font.height + theme.marginSpaceDouble);
+            index * (this.font.height + hcl.theme.marginSpaceDouble) - this._getTopOffset() + this.paddingTop + (this.borderVisible_ ? this.borderWidth_ : 0), 
+            this.width - this._paddingLeft - this.paddingRight, this.font.height + hcl.theme.marginSpaceDouble);
     }
 
     _getItemIndexAt(x, y) {
         if (x > 0 && x < (this._scrollBar.visible ? this._scrollBar.left : this.width)) {
             let vTop = -this._getTopOffset();
             for (let i = 0; i < this._items.count; i++) {
-                if (y > vTop && y <= vTop + this.font.height + theme.marginSpaceDouble)
+                if (y > vTop && y <= vTop + this.font.height + hcl.theme.marginSpaceDouble)
                     return i;
                 else
-                    vTop += this.font.height + theme.marginSpaceDouble;
+                    vTop += this.font.height + hcl.theme.marginSpaceDouble;
             }
         }
 
@@ -2121,7 +2778,7 @@ export class TListBox extends TTextControl {
     }
 
     _getContentHeight() {
-        return this._items.count * (this.font.height + theme.marginSpaceDouble);
+        return this._items.count * (this.font.height + hcl.theme.marginSpaceDouble);
     }
 
     _setHotIndex(val) {
@@ -2183,8 +2840,7 @@ export class TListBox extends TTextControl {
 
             this._scrollBar.max = vH;
             this._scrollBar.visible = true;
-        }
-        else {
+        } else {
             //this._paddingRight = this._paddingRight - this._scrollBar.width;
             this._scrollBar.visible = false;
         }
@@ -2309,13 +2965,13 @@ export class TListBox extends TTextControl {
     _doPaintBorder(hclCanvas, rect) {
         hclCanvas.pen.width = this.borderWidth_;
         if (this._readOnly)
-            hclCanvas.pen.color = theme.borderColor;
+            hclCanvas.pen.color = hcl.theme.borderColor;
         else if (this.focused)
-            hclCanvas.pen.color = theme.borderActiveColor;
+            hclCanvas.pen.color = hcl.theme.borderActiveColor;
         else if (this.mouseIn)
-            hclCanvas.pen.color = theme.borderHotColor;
+            hclCanvas.pen.color = hcl.theme.borderHotColor;
         else
-            hclCanvas.pen.color = theme.borderColor;
+            hclCanvas.pen.color = hcl.theme.borderColor;
             
         hclCanvas.rectangleRect(rect);
     }
@@ -2326,7 +2982,7 @@ export class TListBox extends TTextControl {
         let vRect = this.clientRect();
 
         // background
-        hclCanvas.brush.color = theme.backgroundContentColor;
+        hclCanvas.brush.color = hcl.theme.backgroundContentColor;
         hclCanvas.fillRect(vRect);
 
         // selected or hot background
@@ -2335,14 +2991,14 @@ export class TListBox extends TTextControl {
             if (this._itemIndex >= 0) {
                 let vItemRect = this._getItemRect(this._itemIndex);
                 vItemRect = vTextRect.intersection(vItemRect);
-                hclCanvas.brush.color = theme.backgroundSelectColor;
+                hclCanvas.brush.color = hcl.theme.backgroundSelectColor;
                 hclCanvas.fillRect(vItemRect);
             }
 
             if (this._hotIndex >= 0 && this._hotIndex != this._itemIndex) {
                 let vHotRect = this._getItemRect(this._hotIndex);
                 vHotRect = vTextRect.intersection(vHotRect);
-                hclCanvas.brush.color = theme.backgroundHotColor;
+                hclCanvas.brush.color = hcl.theme.backgroundHotColor;
                 hclCanvas.fillRect(vHotRect);
             }            
         }
@@ -2353,15 +3009,15 @@ export class TListBox extends TTextControl {
     }
 
     doPaintText_(hclCanvas, x, y) {  // eslint-disable-line
-        let vLeft = this.paddingLeft + theme.marginSpace + (this.borderVisible_ ? this.borderWidth_ : 0);
+        let vLeft = this.paddingLeft + hcl.theme.marginSpace + (this.borderVisible_ ? this.borderWidth_ : 0);
         if (this._displayLast < 0)
             return;
 
         hclCanvas.font.assign(THCCanvas.DefaultFont);
         let vTop = this._getItemRect(this._displayFirst).top;  // this.paddingTop - this._getTopOffset();
         for (let i = this._displayFirst; i <= this._displayLast; i++) {
-            hclCanvas.textOut(vLeft, vTop + theme.marginSpace, this._items[i].text);
-            vTop += this.font.height + theme.marginSpaceDouble;
+            hclCanvas.textOut(vLeft, vTop + hcl.theme.marginSpace, this._items[i].text);
+            vTop += this.font.height + hcl.theme.marginSpaceDouble;
         }
     }
 
@@ -2477,6 +3133,13 @@ export class TCombobox extends TButtonEdit {
     }
 
     doKeyDown_(e) {
+        if (!this.readOnly && this.items.count > 0) {
+            if (e.keyCode == TKey.Up && this.itemIndex > 0)
+                this.itemIndex--;
+            else if (e.keyCode == TKey.Down && this.itemIndex < this.items.count - 1)
+                this.itemIndex++;
+        }
+        
         if (!this.static_)
             super.doKeyDown_(e);
     }
@@ -2500,7 +3163,7 @@ export class TCombobox extends TButtonEdit {
         if (this._popupControl == null) {
             this._listBox.width = this.DropDownWidth_;
             this._listBox.itemIndex = this._listBox.itemIndexOf(this.text);
-            let vDropH = this.dropDownCount_ * (this._listBox.font.height + theme.marginSpaceDouble);
+            let vDropH = this.dropDownCount_ * (this._listBox.font.height + hcl.theme.marginSpaceDouble);
             let vContentH = this._listBox.contentHeight;
             if (vContentH > vDropH)
                 this._listBox.height = vDropH;
@@ -2761,12 +3424,12 @@ export class TColorCombobox extends TCombobox {
         this.addItem(TColor.Blue);
         this.addItem(TColor.Yellow);
         this.addItem(TColor.Gray);
-        this.addItem(TColor.Magenta);
-        this.addItem(TColor.Purple);
-        this.addItem(TColor.Teal);
-        this.addItem(TColor.DarkGreen);
+        //this.addItem(TColor.Magenta);
+        //this.addItem(TColor.Purple);
+        //this.addItem(TColor.Teal);
+        //this.addItem(TColor.DarkGreen);
         this.addItem(TColor.Orange);
-        this.addItem(TColor.DarkRed);
+        //this.addItem(TColor.DarkRed);
         this.addItem("更多...");
 
         this._listBox.doPaintBackground_ = (hclCanvas) => { this._listBoxPaintBackground(hclCanvas); }
@@ -2785,7 +3448,7 @@ export class TColorCombobox extends TCombobox {
 
     _listBoxPaintBackground(hclCanvas) {
         let vRect = this._listBox.clientRect();
-        hclCanvas.brush.color = theme.backgroundContentColor;
+        hclCanvas.brush.color = hcl.theme.backgroundContentColor;
         hclCanvas.fillRect(vRect);
         if (this._listBox.borderVisible_)
             this._listBox._doPaintBorder(hclCanvas, vRect);
@@ -2802,8 +3465,8 @@ export class TColorCombobox extends TCombobox {
             if (i == this._listBox.items.count - 1) {
                 hclCanvas.brush.color = TColor.White;
                 vBackRect.resetRect(vRect);
-                hclCanvas.textOut(vRect.left + this._listBox.paddingLeft + theme.marginSpace, 
-                    vRect.top + theme.marginSpace, this._listBox._items[i].text);
+                hclCanvas.textOut(vRect.left + this._listBox.paddingLeft + hcl.theme.marginSpace, 
+                    vRect.top + hcl.theme.marginSpace, this._listBox._items[i].text);
             } else {
                 hclCanvas.brush.color = this._listBox._items[i].text;
             
@@ -2813,16 +3476,16 @@ export class TColorCombobox extends TCombobox {
             }
 
             if (this._listBox._itemIndex == i) {
-                hclCanvas.pen.color = theme.borderActiveColor;
+                hclCanvas.pen.color = hcl.theme.borderActiveColor;
                 hclCanvas.rectangleRect(vRect);
             }
 
             if (this._listBox._hotIndex == i) {
-                hclCanvas.pen.color = theme.borderHotColor;
+                hclCanvas.pen.color = hcl.theme.borderHotColor;
                 hclCanvas.rectangleRect(vRect);
             }
 
-            vRect.offset(0, this._listBox.font.height + theme.marginSpaceDouble);
+            vRect.offset(0, this._listBox.font.height + hcl.theme.marginSpaceDouble);
         }
     }
 
@@ -2880,7 +3543,7 @@ export class TColorCombobox extends TCombobox {
     doPaintBackground_(hclCanvas) {
         let vRect = this.clientRect();
         vRect.left = this.paddingLeft;
-        hclCanvas.brush.color = theme.backgroundContentColor;
+        hclCanvas.brush.color = hcl.theme.backgroundContentColor;
         hclCanvas.fillRect(vRect);
 
         if (this.borderVisible_) {
@@ -2890,9 +3553,9 @@ export class TColorCombobox extends TCombobox {
 
         if (this._buttonMouseIn) {
             if (this._buttonDown)
-                hclCanvas.brush.color = theme.backgroundDownColor;
+                hclCanvas.brush.color = hcl.theme.backgroundDownColor;
             else 
-                hclCanvas.brush.color = theme.backgroundHotColor;
+                hclCanvas.brush.color = hcl.theme.backgroundHotColor;
 
             hclCanvas.fillRect(this._buttonRect);
         }
@@ -2900,7 +3563,7 @@ export class TColorCombobox extends TCombobox {
         if (this.image.loaded)
             hclCanvas.drawImage(this._buttonRect.left, this._buttonRect.top, this.image);
         else
-            theme.drawDropDown(hclCanvas, this._buttonRect);
+            hcl.theme.drawDropDown(hclCanvas, this._buttonRect);
 
         vRect = this.textArea();
         hclCanvas.brush.color = this.color;
@@ -2940,21 +3603,23 @@ class TCustomMenuItem extends TObject {
         this.left = 0;
         this.top = 0;
         this.shortCut = 0;
-        this.width = theme.popupMenuImagePadding + theme.marginSpaceDouble;
-        this.height = theme.marginSpaceDouble;
+        this.width = hcl.theme.popupMenuImagePadding + hcl.theme.marginSpaceDouble;
+        this.height = hcl.theme.marginSpaceDouble;
     }
 
     paint(hclCanvas) {
         let vTop;
         if (!this.isSpliter) {
             vTop = this.top + Math.trunc((this.height - hclCanvas.font.height) / 2);
-            hclCanvas.textOut(this.left + theme.popupMenuImagePadding + theme.marginSpace, vTop, this.text);
+            hclCanvas.textOut(this.left + hcl.theme.popupMenuImagePadding + hcl.theme.marginSpace, vTop, this.text);
             if (this.subItems.count > 0)
-                theme.drawDropRight(hclCanvas, TRect.CreateByBounds(this.left + this.width - theme.iconSize, this.top, theme.iconSize, this.height));
+                hcl.theme.drawDropRight(hclCanvas, TRect.CreateByBounds(this.left + this.width - hcl.theme.iconSize, this.top, hcl.theme.iconSize, this.height));
         } else {
+            hclCanvas.pen.width = 1;
+            hclCanvas.pen.color = TColor.Gray;
             vTop = this.top + Math.trunc(this.height / 2);
-            hclCanvas.drawLineDriect(this.left + theme.popupMenuImagePadding, vTop,
-                this.left + this.width - theme.marginSpace, vTop);
+            hclCanvas.drawLineDriect(this.left + hcl.theme.popupMenuImagePadding, vTop,
+                this.left + this.width - hcl.theme.marginSpace, vTop);
         }
     }
 
@@ -2974,7 +3639,7 @@ class TMenuItem extends TCustomMenuItem {
         this.dropDownStyle = false;
         this.image = TImage.Create(16, 16);
         this._onClick = null;
-        this.onPupup = null;
+        this.onPopup = null;
     }
 
     _closePopupControl_() {
@@ -2984,9 +3649,9 @@ class TMenuItem extends TCustomMenuItem {
 
     paint(hclCanvas) {
         if (!this.enabled)
-            hclCanvas.font.color = theme.textDisableColor;
+            hclCanvas.font.color = hcl.theme.textDisableColor;
         else
-            hclCanvas.font.color = theme.textColor;
+            hclCanvas.font.color = hcl.theme.textColor;
         
         super.paint(hclCanvas);
     }
@@ -3016,9 +3681,9 @@ class TMenuItem extends TCustomMenuItem {
     }
 
     popup(x, y, root = true) {
-        if (this.visibleCount() > 0 && this._popupControl == null) {
-            if (this.onPupup != null)
-                this.onPupup();
+        if (this._popupControl == null) {  // 不判断this.visibleCount() > 0 给onPopup机会显示已经隐藏的菜单
+            if (this.onPopup != null)
+                this.onPopup();
 
             this._popupControl = new TPopupMenuControl(this);  // 创建并计算PopupControl的大小
             this._popupControl.dropDownStyle = this.dropDownStyle;
@@ -3076,13 +3741,13 @@ class TPopupMenuControl extends TPopupControl {
                 vItem.top = vTop;
                 
                 if (vItem.isSpliter) {
-                    vItem.width = theme.marginSpaceDouble;
-                    vItem.height = theme.marginSpace;
+                    vItem.width = hcl.theme.marginSpaceDouble;
+                    vItem.height = hcl.theme.marginSpace;
                 } else {
-                    vItem.width = theme.popupMenuImagePadding + theme.marginSpace
-                        + THCCanvas.textWidth(this.font, vItem.text) + theme.iconSize;
+                    vItem.width = hcl.theme.popupMenuImagePadding + hcl.theme.marginSpace
+                        + THCCanvas.textWidth(this.font, vItem.text) + hcl.theme.iconSize;
 
-                    vItem.height = this.font.height + theme.marginSpaceDouble;
+                    vItem.height = this.font.height + hcl.theme.marginSpaceDouble;
                 }
 
                 if (vMaxWidth < vItem.width)
@@ -3123,7 +3788,7 @@ class TPopupMenuControl extends TPopupControl {
     getHint_() {
         if (this._mouseMoveIndex >= 0) {
             let vHint = this.menuItem.subItems[this._mouseMoveIndex].hint;
-            if (system.assigned(vHint) && (vHint != ""))
+            if (hcl.system.assigned(vHint) && (vHint != ""))
                 return vHint;
             else
                 return super.getHint_();
@@ -3166,9 +3831,9 @@ class TPopupMenuControl extends TPopupControl {
             let vItem = this.menuItem.subItems[this._mouseMoveIndex];
             if (!vItem.isSpliter && vItem.visible) {
                 if (vItem.enabled)
-                    hclCanvas.brush.color = theme.backgroundSelectColor;
+                    hclCanvas.brush.color = hcl.theme.backgroundSelectColor;
                 else
-                    hclCanvas.brush.color = theme.backgroundHotColor;
+                    hclCanvas.brush.color = hcl.theme.backgroundHotColor;
 
                 hclCanvas.fillRect(vItem.bounds());
             }
@@ -3176,7 +3841,7 @@ class TPopupMenuControl extends TPopupControl {
 
         hclCanvas.pen.width = 1;
         hclCanvas.pen.color = TColor.Gray;
-        hclCanvas.drawLineDriect(theme.popupMenuImagePadding, 0, theme.popupMenuImagePadding, this.height);
+        hclCanvas.drawLineDriect(hcl.theme.popupMenuImagePadding, 0, hcl.theme.popupMenuImagePadding, this.height);
     }
 
     doPaint_(hclCanvas) {
@@ -3191,7 +3856,7 @@ class TPopupMenuControl extends TPopupControl {
     getHintRect() {
         if (this._mouseMoveIndex >= 0) {
             let vHint = this.menuItem.subItems[this._mouseMoveIndex].hint;
-            if (system.assigned(vHint) && (vHint != ""))
+            if (hcl.system.assigned(vHint) && (vHint != ""))
                 return this.menuItem.subItems[this._mouseMoveIndex].bounds();
             else
                 return super.getHintRect();
@@ -3352,9 +4017,9 @@ export class TPageControl extends TPanel {
     _formatHeader(page) {
         let vW = THCCanvas.textWidth(THCCanvas.DefaultFont, page.text);
         if (this._showCloseButton)
-            vW += theme.iconWidth;
+            vW += hcl.theme.iconWidth;
 
-        page._headerRect_.resetBounds(0, 0, vW + theme.marginSpaceDouble, this._headerHeight);
+        page._headerRect_.resetBounds(0, 0, vW + hcl.theme.marginSpaceDouble, this._headerHeight);
         let vLeft = 0, vPage;
         for (let i = 0; i < this.controls.count; i++) {
             vPage = this.controls[i];
@@ -3370,7 +4035,7 @@ export class TPageControl extends TPanel {
 
     doAddControl_(page) {
         if (!page.isClass(TPage)) {
-            system.exception("只能添加TPage及其子类");
+            hcl.exception("只能添加TPage及其子类");
             return;
         }
 
@@ -3397,8 +4062,8 @@ export class TPageControl extends TPanel {
             super.doPaintBorder_(hclCanvas);
         else if (this.borderVisible_) {
             if (this.controls.count > 0) {
-                hclCanvas.pen.color = theme.borderColor;
-                hclCanvas.pen.width = theme.borderWidth;
+                hclCanvas.pen.color = hcl.theme.borderColor;
+                hclCanvas.pen.width = hcl.theme.borderWidth;
                 hclCanvas.beginPath();
                 hclCanvas.moveTo(0, this._headerHeight);
                 hclCanvas.lineTo(0, this.height - 1);
@@ -3415,19 +4080,19 @@ export class TPageControl extends TPanel {
         hclCanvas.font.assign(THCCanvas.DefaultFont);  //.color = theme.textColor;
         for (let i = 0; i < this.controls.count; i++) {
             vPage = this.controls[i];
-            hclCanvas.textOut(vPage._headerRect_.left + theme.marginSpace, vPage._headerRect_.top + theme.marginSpace, vPage.text);
+            hclCanvas.textOut(vPage._headerRect_.left + hcl.theme.marginSpace, vPage._headerRect_.top + hcl.theme.marginSpace, vPage.text);
 
             if (i == this._hotBtnPageIndex) {
-                hclCanvas.brush.color = theme.backgroundHotColor;
-                hclCanvas.fillBounds(vPage._headerRect_.right - theme.iconWidth, vPage._headerRect_.top, theme.iconWidth, theme.iconWidth);
+                hclCanvas.brush.color = hcl.theme.backgroundHotColor;
+                hclCanvas.fillBounds(vPage._headerRect_.right - hcl.theme.iconWidth, vPage._headerRect_.top, hcl.theme.iconWidth, hcl.theme.iconWidth);
             }
 
             if (i == this._activePageIndex) {
                 if (this._showCloseButton)
-                    hclCanvas.drawImage(vPage._headerRect_.right - theme.iconWidth, vPage._headerRect_.top + 2, theme.closeImage);
+                    hclCanvas.drawImage(vPage._headerRect_.right - hcl.theme.iconWidth, vPage._headerRect_.top + 2, hcl.theme.closeImage);
 
-                hclCanvas.pen.color = theme.borderColor;
-                hclCanvas.pen.width = theme.borderWidth;
+                hclCanvas.pen.color = hcl.theme.borderColor;
+                hclCanvas.pen.width = hcl.theme.borderWidth;
                 hclCanvas.beginPath();
                 hclCanvas.moveTo(0, this._headerHeight);
                 hclCanvas.lineTo(vPage._headerRect_.left + 1, this._headerHeight);
@@ -3437,7 +4102,7 @@ export class TPageControl extends TPanel {
                 hclCanvas.lineTo(this.width, this._headerHeight);
                 hclCanvas.paintPath();
             } else if (this._showCloseButton && (i == this._hotHeaderIndex))
-                hclCanvas.drawImage(vPage._headerRect_.right - theme.iconWidth, vPage._headerRect_.top + 2, theme.closeImage);
+                hclCanvas.drawImage(vPage._headerRect_.right - hcl.theme.iconWidth, vPage._headerRect_.top + 2, hcl.theme.closeImage);
         }
     }
 
@@ -3513,7 +4178,7 @@ export class TPageControl extends TPanel {
 
             if (this._hotHeaderIndex >= 0) {
                 let vPage = this.controls[this._hotHeaderIndex];
-                if (e.x > vPage._headerRect_.right - theme.iconWidth) {
+                if (e.x > vPage._headerRect_.right - hcl.theme.iconWidth) {
                     if (vPage._headerRect_.pointInAt(e.x, e.y))
                         vBtnInPage = this._hotHeaderIndex;
                 }
@@ -3535,7 +4200,7 @@ export class TPageControl extends TPanel {
         if (this._headerVisible && e.y < this._headerHeight) {
             //let vIndex = this._pageHeaderIndexAt(e.x, e.y);
             let vPage = this.controls[this._activePageIndex];
-            if (this._activePageIndex >= 0 && e.x > vPage._headerRect_.right - theme.iconWidth && e.x < vPage._headerRect_.right)
+            if (this._activePageIndex >= 0 && e.x > vPage._headerRect_.right - hcl.theme.iconWidth && e.x < vPage._headerRect_.right)
                 this.closePage(this._activePageIndex);
         } else
             super.doMouseUp_(e);
@@ -3885,9 +4550,14 @@ export class TCustomGrid extends TScrollPanel {
     }
 
     doCellPaint_(hclCanvas, rect, r, c) {
-        if (this.onCellPaint != null)
-            return this.onCellPaint(hclCanvas, rect, r, c);
-        else
+        if (this.onCellPaint != null) {
+            hclCanvas.save();
+            try {
+                return this.onCellPaint(hclCanvas, rect, r, c);
+            } finally {
+                hclCanvas.restore();
+            }
+        } else
             return false;
     }
 
@@ -3897,13 +4567,13 @@ export class TCustomGrid extends TScrollPanel {
 
         let vLeft = 0, vTop = 0, vWidth, vHeight;
         hclCanvas.font.assign(THCCanvas.DefaultFont);
-        hclCanvas.pen.width = theme.borderWidth;
-        hclCanvas.pen.color = theme.borderColor;
+        hclCanvas.pen.width = hcl.theme.borderWidth;
+        hclCanvas.pen.color = hcl.theme.borderColor;
 
         let vRect = new TRect();
         if (this.fixRowCount_) {
             vTop = 0;
-            hclCanvas.brush.color = theme.backgroundDownColor;
+            hclCanvas.brush.color = hcl.theme.backgroundDownColor;
             for (let r = 0; r < this.fixRowCount; r++) {
                 vHeight = this.getRowHeight_(r);
                 vLeft = this.leftOffset_;
@@ -3911,13 +4581,12 @@ export class TCustomGrid extends TScrollPanel {
                     vWidth = this.getCellWidth_(r, c);
                     if (vWidth > 0) {
                         vRect.resetBounds(vLeft, vTop, vWidth, vHeight);
-                        if (!this.doCellPaint_(hclCanvas, vRect, r, c)) {
-                            hclCanvas.fillRect(vRect);
+                        hclCanvas.fillRect(vRect);
+                        if (!this.doCellPaint_(hclCanvas, vRect, r, c))
                             this.rows[r][c].paintTo(hclCanvas, vRect);
-                        }
 
-                        vRect.left -= theme.borderWidth;
-                        vRect.top -= theme.borderWidth;
+                        vRect.left -= hcl.theme.borderWidth;
+                        vRect.top -= hcl.theme.borderWidth;
                         hclCanvas.rectangleRect(vRect);
                         vLeft += vWidth;
                     }
@@ -3929,16 +4598,16 @@ export class TCustomGrid extends TScrollPanel {
 
         
         if (this.HScroll_.visible && this.VScroll_.visible) {
-            hclCanvas.brush.color = theme.backgroundStaticColor;
+            hclCanvas.brush.color = hcl.theme.backgroundStaticColor;
             hclCanvas.fillBounds(this.VScroll_.left, this.HScroll_.top, this.VScroll_.width, this.HScroll_.height);
         }
 
         hclCanvas.save();
         try {
-            hclCanvas.clip(this.borderVisible ? theme.borderWidth : 0,
+            hclCanvas.clip(this.borderVisible ? hcl.theme.borderWidth : 0,
                 vTop,
-                this.VScroll_.visible ? this.width - this.VScroll_.width : this.width - theme.borderWidth,
-                this.HScroll_.visible ? this.height - vTop - this.HScroll_.height : this.height - vTop - theme.borderWidth);
+                this.VScroll_.visible ? this.width - this.VScroll_.width : this.width - hcl.theme.borderWidth,
+                this.HScroll_.visible ? this.height - vTop - this.HScroll_.height : this.height - vTop - hcl.theme.borderWidth);
 
             vLeft = this.leftOffset_;
             vTop = this.topOffset_;
@@ -3948,7 +4617,7 @@ export class TCustomGrid extends TScrollPanel {
                 
                 vRect.resetBounds(vLeft, vTop, this.width, vHeight);
                 if (!this.doRowPaint_(hclCanvas, vRect, r)) {
-                    hclCanvas.brush.color = theme.backgroundContentColor;
+                    hclCanvas.brush.color = hcl.theme.backgroundContentColor;
                     hclCanvas.fillRect(vRect);
                 }
 
@@ -3958,7 +4627,7 @@ export class TCustomGrid extends TScrollPanel {
                         vRect.resetBounds(vLeft, vTop, vWidth, vHeight);
                         if (r == this.row_) {
                             if (this.option.rowSelect || c == this.col_) {
-                                hclCanvas.brush.color = theme.backgroundSelectColor;
+                                hclCanvas.brush.color = hcl.theme.backgroundSelectColor;
                                 hclCanvas.fillRect(vRect);
                             }
                         }
@@ -3966,8 +4635,8 @@ export class TCustomGrid extends TScrollPanel {
                         if (!this.doCellPaint_(hclCanvas, vRect, r, c))
                             this.rows[r][c].paintTo(hclCanvas, vRect);
 
-                        vRect.left -= theme.borderWidth;
-                        vRect.top -= theme.borderWidth;
+                        vRect.left -= hcl.theme.borderWidth;
+                        vRect.top -= hcl.theme.borderWidth;
                         hclCanvas.rectangleRect(vRect);
                         vLeft += vWidth;
                     }
@@ -4234,8 +4903,8 @@ export class TGrid extends TCustomGrid {
                 if (vOldRow == this.row_ && vOldCol == this.col_) {  // 本次点在同一个单元格
                     this.FInnerEdit_.text = this.rows[this.row_][this.col_].value;
                     let vRect = this.getCellRect(this.row_, this.col_);
-                    vRect.left -= theme.borderWidth;
-                    vRect.top -= theme.borderWidth;
+                    vRect.left -= hcl.theme.borderWidth;
+                    vRect.top -= hcl.theme.borderWidth;
                     this.FInnerEdit_.left = vRect.left;
                     this.FInnerEdit_.top = vRect.top;
                     this.FInnerEdit_.width_ = vRect.width;
@@ -4304,18 +4973,18 @@ export class TTreeNode extends TObject {
     }
 
     getNodeAt(x, y, atop) {
-        if (y > atop && y <= atop + theme.itemHeight)
+        if (y > atop && y <= atop + hcl.theme.itemHeight)
             return {
                 node: this,
-                top: atop + theme.itemHeight
+                top: atop + hcl.theme.itemHeight
             }
 
-        atop += theme.itemHeight;
+        atop += hcl.theme.itemHeight;
 
         if (this._expand) {
             let vInfo;
             for (let i = 0, vCount = this.childCount; i < vCount; i++) {
-                vInfo = this.childs[i].getNodeAt(x + theme.iconWidth, y, atop);
+                vInfo = this.childs[i].getNodeAt(x + hcl.theme.iconWidth, y, atop);
                 if (vInfo.node != null)
                     return vInfo;
 
@@ -4331,11 +5000,11 @@ export class TTreeNode extends TObject {
 
     paintTo(hclCanvas, left, top) {
         this.doPaint_(hclCanvas, this, left, top);
-        top += theme.itemHeight;
+        top += hcl.theme.itemHeight;
 
         if (this._expand) {
             for (let i = 0, vCount = this.childCount; i < vCount; i++)
-                top = this.childs[i].paintTo(hclCanvas, left + theme.iconWidth, top);
+                top = this.childs[i].paintTo(hclCanvas, left + hcl.theme.iconWidth, top);
         }
         return top;
     }
@@ -4348,7 +5017,7 @@ export class TTreeNode extends TObject {
     }
 
     getHeight() {
-        let vH = theme.itemHeight;
+        let vH = hcl.theme.itemHeight;
         if (this._expand) {
             for (let i = 0, vCount = this.childCount; i < vCount; i++)
                 vH += this.childs[i].getHeight();
@@ -4424,23 +5093,23 @@ export class TTreeView extends TScrollPanel {
     }
 
     _doNodePaint(hclCanvas, node, left, top) {
-        if (top + theme.itemHeight < 0)
+        if (top + hcl.theme.itemHeight < 0)
             return;
 
         if (top > this.height)
             return;
 
         if (node === this.selectNode) {
-            hclCanvas.brush.color = theme.backgroundSelectColor;
+            hclCanvas.brush.color = hcl.theme.backgroundSelectColor;
             //hclCanvas.fillBounds(left + theme.iconWidth, top, hclCanvas.textWidth(node.text), theme.itemHeight);
-            hclCanvas.fillBounds(0, top, this.width, theme.itemHeight);
+            hclCanvas.fillBounds(0, top, this.width, hcl.theme.itemHeight);
         }
 
         if (node.childCount > 0) {
             if (node._expand)
-                hclCanvas.drawImage(left + 2, top + 2, theme.expandImage);
+                hclCanvas.drawImage(left + 2, top + 2, hcl.theme.expandImage);
             else
-                hclCanvas.drawImage(left + 2, top + 2, theme.foldImage);
+                hclCanvas.drawImage(left + 2, top + 2, hcl.theme.foldImage);
         }
 
         if (this.onNodePaint != null) {
@@ -4448,7 +5117,7 @@ export class TTreeView extends TScrollPanel {
                 return;
         }
 
-        hclCanvas.textOut(left + theme.iconWidth, top + 3, node.text);
+        hclCanvas.textOut(left + hcl.theme.iconWidth, top + 3, node.text);
     }
 
     _doNodeChange(node) {
@@ -4469,8 +5138,8 @@ export class TTreeView extends TScrollPanel {
     doPaint_(hclCanvas) {
         let vLeft = 0, vTop = 0;
         if (this.borderVisible) {
-            vLeft = theme.borderWidth;
-            vTop = theme.borderWidth;
+            vLeft = hcl.theme.borderWidth;
+            vTop = hcl.theme.borderWidth;
         }
 
         vTop -= this.VScroll_.position;
@@ -4498,7 +5167,7 @@ export class TTreeView extends TScrollPanel {
     doMouseUp_(e) {
         let vNode = this.getNodeAt(e.x, e.y);
         if (vNode != null && vNode === this.selectNode) {
-            if (e.x > vNode.level * theme.iconWidth && e.x < (vNode.level + 1) * theme.iconWidth)
+            if (e.x > vNode.level * hcl.theme.iconWidth && e.x < (vNode.level + 1) * hcl.theme.iconWidth)
                 this.expandSwitch(vNode);
         }
 
@@ -4522,7 +5191,7 @@ export class TTreeView extends TScrollPanel {
     }
 
     getNodeAt(x, y) {
-        let vTop = this.borderVisible ? theme.borderWidth : 0;
+        let vTop = this.borderVisible ? hcl.theme.borderWidth : 0;
         vTop -= this.VScroll_.position;
         let vInfo = null;
         for (let i = 0, vCount = this.nodes.count; i < vCount; i++) {

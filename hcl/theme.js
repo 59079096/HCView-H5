@@ -14,7 +14,7 @@ import { TRect } from "./System.js";
 /**
  * HCL类：主题类(已实例化为theme，无需重复实例化)
  */
-class TTheme {
+export class TTheme {
     constructor() {
         this.onImageLoad = null;
        
@@ -147,20 +147,23 @@ class TTheme {
         switch (style) {
             case TControlStyle.ButtonRadio: {
                     hclCanvas.save();
-                    hclCanvas.pen.color = this.borderColor;
-                    hclCanvas.pen.style = TPenStyle.Solid;
-                    hclCanvas.pen.width = 1;
-                    hclCanvas.brush.style = TBrushStyle.Clear;
-                    hclCanvas.ellipseRectDriect(vRect);
-
-                    if (stateSet.has(TControlState.Checked)) {
-                        hclCanvas.brush.color = this.textColor;
-                        hclCanvas.brush.style = TBrushStyle.Solid;
-                        hclCanvas.pen.style = TPenStyle.Clear;
-                        vRect.inFlate(-3, -3);
+                    try {
+                        hclCanvas.pen.color = this.borderColor;
+                        hclCanvas.pen.style = TPenStyle.Solid;
+                        hclCanvas.pen.width = 1;
+                        hclCanvas.brush.style = TBrushStyle.Clear;
                         hclCanvas.ellipseRectDriect(vRect);
+
+                        if (stateSet.has(TControlState.Checked)) {
+                            hclCanvas.brush.color = this.textColor;
+                            hclCanvas.brush.style = TBrushStyle.Solid;
+                            hclCanvas.pen.style = TPenStyle.Clear;
+                            vRect.inFlate(-3, -3);
+                            hclCanvas.ellipseRectDriect(vRect);
+                        }
+                    } finally {
+                        hclCanvas.restore();
                     }
-                    hclCanvas.restore();
                     // vCanvas.brush.color = TColor.White;
                     // vCanvas.fillRect(vRect);
                     
@@ -186,20 +189,22 @@ class TTheme {
 
             case TControlStyle.CheckBox: {
                     hclCanvas.save();
-                    hclCanvas.pen.color = this.borderColor;
-                    hclCanvas.pen.width = 1;
-                    hclCanvas.rectangleRect(vRect);
+                    try {
+                        hclCanvas.pen.color = this.borderColor;
+                        hclCanvas.pen.width = 1;
+                        hclCanvas.rectangleRect(vRect);
 
-                    if (stateSet.has(TControlState.Checked)) {
-                        hclCanvas.pen.color = this.textColor;
-                        hclCanvas.beginPath();
-                        hclCanvas.moveTo(vRect.left + 3, vRect.top + this.checkBoxWidth / 2);
-                        hclCanvas.lineTo(vRect.left - 2 + this.checkBoxWidth / 2, vRect.bottom - 3);
-                        hclCanvas.lineTo(vRect.right - 3, vRect.top + 3);
-                        hclCanvas.paintPath();
+                        if (stateSet.has(TControlState.Checked)) {
+                            hclCanvas.pen.color = this.textColor;
+                            hclCanvas.beginPath();
+                            hclCanvas.moveTo(vRect.left + 3, vRect.top + this.checkBoxWidth / 2);
+                            hclCanvas.lineTo(vRect.left - 2 + this.checkBoxWidth / 2, vRect.bottom - 3);
+                            hclCanvas.lineTo(vRect.right - 3, vRect.top + 3);
+                            hclCanvas.paintPath();
+                        }
+                    } finally {
+                        hclCanvas.restore();
                     }
-
-                    hclCanvas.restore();
 
                     // vCanvas.brush.color = TColor.White;
                     // vCanvas.fillRect(vRect);
@@ -281,8 +286,3 @@ class TTheme {
         }
     }
 }
-
-/**
- * HCL实例：主题类的实例
- */
-export let theme = new TTheme();

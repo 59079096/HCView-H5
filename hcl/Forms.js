@@ -7,15 +7,12 @@
 
 =======================================================*/
 
-import { application } from "./Application.js";
-import { TAlign, TCustomControl } from "./Controls.js";
-import { THCCanvas } from "./Graphics.js";
 import { hcl } from "./HCL.js";
+import { TAlign, TCustomControl, TKey } from "./Controls.js";
+import { THCCanvas } from "./Graphics.js";
 import { TButton, TCaptionBar, TEdit, TLable, TPanel } from "./StdCtrls.js";
-import { theme } from "./theme.js";
-import { system } from "./System.js";
 
-export var TFormShowState = {
+export let TFormShowState = {
     Close: 0,
     Hide: 1,
     Show: 2,
@@ -23,7 +20,7 @@ export var TFormShowState = {
     ShowModel: 4,
 }
 
-export var TModalResult = {
+export let TModalResult = {
     Close: 0,
     Ok: 1,
     Cancel: 2
@@ -37,9 +34,40 @@ export class TCustomForm extends TCustomControl {
         this.visible_ = false;
         this.width_ = width;
         this.height_ = height;
+        this.keyPreview = false;
         this.closeFree = true;
         this.showState = TFormShowState.Close;
         this.modalResult = TModalResult.Close;
+    }
+
+    doKeyDown_(e) {
+        if (this.keyPreview) {
+            this.onKeyDown(e);
+            if (e.keyCode == TKey.None)
+                return;
+        }
+
+        super.doKeyDown_(e);
+    }
+
+    doKeyPress_(e) {
+        if (this.keyPreview) {
+            this.onKeyPress(e);
+            if (e.keyCode == TKey.None)
+                return;
+        }
+
+        super.doKeyPress_(e);
+    }
+
+    doKeyUp_(e) {
+        if (this.keyPreview) {
+            this.onKeyUp(e);
+            if (e.keyCode == TKey.None)
+                return;
+        }
+
+        super.doKeyUp_(e);
     }
 
     doSetBounds_() {
@@ -65,7 +93,7 @@ export class TCustomForm extends TCustomControl {
 
     _checkParent() {
         if (this.parent == null)
-            application.addForm(this);
+            hcl.application.addForm(this);
     }
 
     doVisibleChange_(val) {
@@ -146,7 +174,7 @@ export class TForm extends TCustomForm {
         this.captionBar.paddingRight = 5;
         this.captionBar.width = width;
 
-        this.lblCaption = new TLable("form" + (application.forms.count + 1).toString());
+        this.lblCaption = new TLable("form" + (hcl.application.forms.count + 1).toString());
         this.lblCaption.align = TAlign.Left;
         this.captionBar.addControl(this.lblCaption);
 
@@ -165,8 +193,13 @@ export class TForm extends TCustomForm {
         this.clientArea.borderVisible = false;
         this.clientArea.transparent = true;
         this.clientArea.align = TAlign.Client;
+        this.clientArea.onPaint = (hclCanvas) => {
+            this.doClientPaint_(hclCanvas);
+        }
         super.addControl(this.clientArea);
     }
+
+    doClientPaint_(hclCanvas) { }
 
     doGetPopupMenu() {
         return this.clientArea.popupMenu;
@@ -178,6 +211,10 @@ export class TForm extends TCustomForm {
 
     doSetColor_() {
         this.clientArea.color = this.color;
+    }
+
+    insertControl(i, control) {
+        this.clientArea.insertControl(i, control);
     }
 
     addControl(control) {
@@ -200,8 +237,8 @@ export class TDialog extends TForm {
     }
 
     doPaintBackground_(hclCanvas) {
-        hclCanvas.brush.color = theme.backgroundStaticColor;
-        hclCanvas.fillRectShadow(this.clientRect(), theme.shadow);
+        hclCanvas.brush.color = hcl.theme.backgroundStaticColor;
+        hclCanvas.fillRectShadow(this.clientRect(), hcl.theme.shadow);
         //this.doPaintBorder_(hclCanvas);
     }
 }
@@ -273,7 +310,7 @@ export class TOpenDialog extends TDialog {
     }
 }
 
-export var TMsgDlgType = {
+export let TMsgDlgType = {
     Warning: 0,
     Error: 1,
     Information: 2,
@@ -281,7 +318,7 @@ export var TMsgDlgType = {
     Custom: 4
 }
 
-export var TMsgDlgBtn = {
+export let TMsgDlgBtn = {
     Yes: 1, 
     No: 2,
     OK: 4,
@@ -301,7 +338,7 @@ export class TMessageDialog extends TDialog {
         this.text = text;
         this.dlgBtn = null; 
 
-        let vArr = text.split(system.lineBreak), vW = 0, vWidth = 0;
+        let vArr = text.split(hcl.system.lineBreak), vW = 0, vWidth = 0;
         for (let i = 0; i < vArr.length; i++) {
             vW = THCCanvas.textWidth(null, vArr[i]) + 40;
             if (vWidth < vW)
@@ -313,7 +350,7 @@ export class TMessageDialog extends TDialog {
         this.width = Math.max(this.width_, vWidth);
         this.moveCenter();
         
-        let vBtn, vLeft = Math.trunc((this.width - (dlgBtns.length * 75 + (dlgBtns.length - 1) * theme.marginSpace)) / 2);
+        let vBtn, vLeft = Math.trunc((this.width - (dlgBtns.length * 75 + (dlgBtns.length - 1) * hcl.theme.marginSpace)) / 2);
         for (let i = 0; i < dlgBtns.length; i++) {
             switch (dlgBtns[i]) {
                 case TMsgDlgBtn.Yes:
@@ -368,22 +405,33 @@ export class TMessageDialog extends TDialog {
             }
 
             vBtn.left = vLeft;
-            vLeft += vBtn.width + theme.marginSpace;
+            vLeft += vBtn.width + hcl.theme.marginSpace;
             vBtn.top = this.clientArea.height - 10 - vBtn.height;
             this.addControl(vBtn);
         }
     }
 
-    doPaint_(hclCanvas) {
-        super.doPaint_(hclCanvas);
+    doClientPaint_(hclCanvas) {
+        super.doClientPaint_(hclCanvas);
         //hclCanvas.font.assign(this.font);
 
-        let vArr = this.text.split(system.lineBreak), vTop = Math.trunc((this.clientArea.height - this.contentHeight) / 2 + 5);
+        let vArr = this.text.split(hcl.system.lineBreak), vTop = Math.trunc((this.clientArea.height - this.contentHeight) / 2 + 5);
         for (let i = 0; i < vArr.length; i++) {
             hclCanvas.textOut(20, vTop, vArr[i])
             vTop += THCCanvas.DefaultFont.height + 5;
         }
     }
+
+    // doPaint_(hclCanvas) {
+    //     super.doPaint_(hclCanvas);
+    //     //hclCanvas.font.assign(this.font);
+
+    //     let vArr = this.text.split(hcl.system.lineBreak), vTop = Math.trunc((this.clientArea.height - this.contentHeight) / 2 + 5);
+    //     for (let i = 0; i < vArr.length; i++) {
+    //         hclCanvas.textOut(20, vTop, vArr[i])
+    //         vTop += THCCanvas.DefaultFont.height + 5;
+    //     }
+    // }
 }
 
 export class TInputBox extends TDialog {
