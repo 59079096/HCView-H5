@@ -4,3 +4,8 @@
 ![图片说明](https://github.com/59079096/hcview-H5/blob/master/page.png)
 
 hcview不再更新，以后只更新hcl的代码
+
+最新版本的示例可见 
+
+http://hcview.cn/demo/HCEmrViewLib/index.html
+http://hcview.cn/hcl/_hclDemo.html
